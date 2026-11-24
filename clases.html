@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clases Visuales de Electrónica y Arduino | Liceo Bicentenario San Nicolás</title>
+    <meta
+      name="description"
+      content="Clases interactivas y animadas de electricidad básica, Ley de Ohm, circuitos serie y paralelo, protoboard, pinouts de Arduino Uno / ESP32 y programación."
+    />
+    <link rel="icon" type="image/png" href="./logoliceo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="./index.html" aria-label="Volver al simulador principal">
+          <img
+            src="./logoliceo.png"
+            alt="Escudo Liceo Bicentenario de Excelencia Polivalente San Nicolás"
+            class="brand-logo"
+            width="34"
+            height="34"
+          />
+          <div class="brand-text">
+            <span class="brand-title">Clases Geogo · San Nicolás</span>
+            <span class="brand-sub">Electrónica Visual e Interactiva</span>
+          </div>
+        </a>
+
+        <nav class="main-nav" aria-label="Módulos de clase">
+          <a href="#mod-electricidad">Electricidad</a>
+          <a href="#mod-ohm">Ley de Ohm</a>
+          <a href="#mod-serie-paralelo">Serie / Paralelo</a>
+          <a href="#mod-protoboard">Protoboard</a>
+          <a href="#mod-pinouts">Pinouts</a>
+          <a href="#mod-diagramas">Conexiones</a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="btn-back-sim" href="./index.html#mesa-trabajo">
+            ← Ir al Simulador 3D
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main class="clases-main">
+      <!-- HERO ACADEMIA -->
+      <section class="clases-hero">
+        <div class="clases-container">
+          <span class="section-num">ÁREA PREMILITAR · TECNOLOGÍA GEOGO</span>
+          <h1>Domina la electrónica antes de cablear</h1>
+          <p class="clases-lead">
+            Siete laboratorios visuales e interactivos con animaciones en tiempo real. Mueve cada
+            control para entender cómo fluye la electricidad y proteger tu Arduino en el taller.
+          </p>
+          <div class="clases-pill-nav">
+            <a href="#mod-electricidad">1. Electricidad</a>
+            <a href="#mod-ohm">2. Ley de Ohm + LED</a>
+            <a href="#mod-serie-paralelo">3. Serie vs. Paralelo</a>
+            <a href="#mod-protoboard">4. Protoboard Rayos X</a>
+            <a href="#mod-pinouts">5. Pinouts Uno / ESP32</a>
+            <a href="#mod-diagramas">6. 5 Conexiones Base</a>
+            <a href="#mod-codigo">7. setup() y loop()</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 1: ELECTRICIDAD EN 30 SEGUNDOS -->
+      <section class="class-module" id="mod-electricidad">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 01</span>
+            <h2>Voltaje, Corriente y Resistencia en acción</h2>
+            <p>Observa cómo la presión eléctrica (Voltios) empuja los electrones y la resistencia frena el paso.</p>
+          </div>
+          <div id="root-mod-electricidad"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 2: LEY DE OHM + CALCULADORA VISUAL DE LED -->
+      <section class="class-module is-alt" id="mod-ohm">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 02</span>
+            <h2>Ley de Ohm y Protección de LEDs</h2>
+            <p>Haz clic en el triángulo V / I · R y experimenta con qué resistencia brilla seguro un LED sin quemarse.</p>
+          </div>
+          <div id="root-mod-ohm"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 3: SERIE VS PARALELO -->
+      <section class="class-module" id="mod-serie-paralelo">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 03</span>
+            <h2>Circuitos en Serie vs. Paralelo</h2>
+            <p>Desconecta el LED 1 en ambos esquemas y compara en vivo qué ocurre con la corriente y el voltaje.</p>
+          </div>
+          <div id="root-mod-serie-paralelo"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 4: RAYOS X PROTOBOARD -->
+      <section class="class-module is-alt" id="mod-protoboard">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 04</span>
+            <h2>Rayos X de la Protoboard</h2>
+            <p>Pasa el mouse o haz clic sobre cualquier orificio para iluminar las láminas de cobre ocultas debajo.</p>
+          </div>
+          <div id="root-mod-protoboard"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 5: PINOUT VISUAL INTERACTIVO -->
+      <section class="class-module" id="mod-pinouts">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 05</span>
+            <h2>Pinout Visual de Arduino Uno R3 y ESP32</h2>
+            <p>Filtra por tipo de pin y toca cualquier terminal para saber exactamente qué conectar ahí.</p>
+          </div>
+          <div id="root-mod-pinouts"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 6: 5 DIAGRAMAS ESENCIALES + OSCILOSCOPIO PWM -->
+      <section class="class-module is-alt" id="mod-diagramas">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 06</span>
+            <h2>Los 5 Diagramas de Conexión Esenciales</h2>
+            <p>Con estos cinco esquemas animados puedes armar prácticamente cualquier proyecto del taller.</p>
+          </div>
+          <div id="root-mod-diagramas"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 7: ANATOMÍA DEL CÓDIGO ARDUINO -->
+      <section class="class-module" id="mod-codigo">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 07</span>
+            <h2>Cómo piensa un programa Arduino</h2>
+            <p>Sigue el flujo animado desde el encendido hasta el bucle infinito y pasa directo al simulador 3D.</p>
+          </div>
+          <div id="root-mod-codigo"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <img src="./logoliceo.png" alt="Logo Liceo San Nicolás" width="32" height="32" />
+          <div>
+            <strong>Liceo Bicentenario de Excelencia Polivalente San Nicolás</strong>
+            <span>Academia Visual de Electrónica · Área Premilitar · Tecnología Geogo</span>
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="./index.html">Visor 3D</a>
+          <a href="./index.html#mesa-trabajo">Mesa de trabajo</a>
+          <a href="./index.html#comparar">Comparar placas</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/clases-main.ts"></script>
+  </body>
+</html>

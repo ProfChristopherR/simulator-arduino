@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Laboratorio Tecnológico Geogo — Simulador 3D | Liceo Bicentenario San Nicolás</title>
+    <meta
+      name="description"
+      content="Simulador 3D de Arduino Uno R3, ESP32, Protoboard y sensores del Kit XL para el Área Premilitar - Tecnología Geogo del Liceo Bicentenario de Excelencia Polivalente San Nicolás."
+    />
+    <link rel="icon" type="image/png" href="./logoliceo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#mesa-trabajo">Saltar a la mesa de trabajo</a>
+
+    <header class="site-header" id="top">
+      <div class="header-inner">
+        <a class="brand" href="#hero" aria-label="Inicio Laboratorio Geogo Liceo San Nicolás">
+          <img
+            src="./logoliceo.png"
+            alt="Escudo Liceo Bicentenario de Excelencia Polivalente San Nicolás"
+            class="brand-logo"
+            width="34"
+            height="34"
+          />
+          <div class="brand-text">
+            <span class="brand-title">Liceo Bicentenario San Nicolás</span>
+            <span class="brand-sub">Área Premilitar · Tecnología Geogo</span>
+          </div>
+        </a>
+
+        <nav class="main-nav" aria-label="Navegación principal">
+          <a href="#hero">Placas</a>
+          <a href="#mesa-trabajo">Mesa de trabajo</a>
+          <a href="./clases.html">Clases</a>
+          <a href="#practica">Práctica 3D</a>
+          <a href="#comparar">Comparar</a>
+        </nav>
+
+        <div class="header-actions">
+          <button
+            type="button"
+            class="lofi-pill"
+            id="header-lofi-btn"
+            aria-pressed="false"
+            title="Activar música ambiental Lofi de estudio"
+          >
+            <span class="icon-slot" data-icon="music"></span>
+            <span>Lofi</span>
+            <span class="lofi-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+          </button>
+          <span class="version-pill" title="Versión del simulador">v0.1.0</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="app-main">
+      <!-- HERO 3D FULL-BLEED -->
+      <section class="hero-section" id="hero" aria-label="Visor 3D de placa">
+        <div class="hero-stage-full">
+          <div class="hero-canvas-host" id="hero-canvas-host"></div>
+
+          <!-- Tarjeta flotante izquierda (Frosted Glass) + Modos integrados Quiz 3D y Armar 3D -->
+          <div class="hero-left-stack">
+            <div class="hero-card-float" id="hero-card-float">
+              <div class="eyebrow-row">
+                <span class="eyebrow" id="hero-eyebrow">ARDUINO · 2010 · LÓGICA 5 V</span>
+                <span class="board-index" id="hero-index">01 / 02</span>
+              </div>
+              <h1 class="hero-title" id="hero-title">Arduino Uno R3</h1>
+
+              <div class="hero-card-details" id="hero-card-details">
+                <p class="hero-tagline" id="hero-tagline">
+                  La placa base donde comienza el aprendizaje de electrónica y robótica de campo.
+                </p>
+
+                <div class="hero-cta-row">
+                  <a class="btn-primary" href="#mesa-trabajo" id="btn-open-bench">
+                    <span class="icon-slot" data-icon="cpu"></span>
+                    Abrir en mesa de trabajo
+                  </a>
+                  <span class="level-badge" id="hero-level">Inicial · 5 V</span>
+                </div>
+
+                <p class="hero-summary" id="hero-summary">
+                  Explora cada componente en 3D, arma circuitos sobre protoboard con sensores del Kit XL
+                  y Tecnología Geogo, programa en Arduino C++ y descarga tu archivo .ino real.
+                </p>
+              </div>
+            </div>
+
+            <!-- Lista numerada lateral al activar "Etiquetas" -->
+            <div class="hero-labels-card" id="hero-labels-card" hidden aria-label="Listado numerado de componentes">
+              <ul class="hero-labels-list" id="hero-labels-list"></ul>
+            </div>
+
+            <!-- Tarjeta flotante integrada: QUIZ 3D (Encuentra la pieza) -->
+            <div class="hero-quiz-card" id="hero-quiz-card" hidden aria-label="Quiz 3D en vivo">
+              <div class="eyebrow-row">
+                <span class="eyebrow" id="hero-quiz-progress">PREGUNTA 1 DE 6</span>
+                <span class="level-badge" id="hero-quiz-score">0 / 6 pts</span>
+              </div>
+              <div class="quiz-dots" id="hero-quiz-dots" aria-hidden="true"></div>
+              <h2 class="hq-prompt" id="hero-quiz-prompt">Haz clic sobre el componente solicitado</h2>
+              <p class="hq-sub" id="hero-quiz-sub"></p>
+              <p class="hq-feedback" id="hero-quiz-feedback"></p>
+              <div class="hq-actions">
+                <button type="button" class="wb-mini-btn" id="hero-quiz-hint">Pista</button>
+                <button type="button" class="wb-mini-btn" id="hero-quiz-skip">Saltar</button>
+                <button type="button" class="wb-mini-btn wb-mini-btn-primary" id="hero-quiz-next" hidden>Siguiente →</button>
+                <button type="button" class="wb-mini-btn" id="hero-quiz-exit">Salir</button>
+              </div>
+            </div>
+
+            <!-- HUD flotante integrado: ENSAMBLAJE 3D (Armar 3D) -->
+            <div class="hero-assembly-hud" id="hero-assembly-hud" hidden aria-label="Ensamblaje 3D paso a paso">
+              <div class="eyebrow-row">
+                <span class="eyebrow">ENSAMBLAJE 3D · PIEZAS BAJAS PRIMERO</span>
+                <span class="level-badge" id="hero-asm-timer">0:00</span>
+              </div>
+              <div class="ha-prog-row">
+                <span id="hero-asm-progress">0 / 13 soldadas</span>
+                <button type="button" class="wb-mini-btn" id="hero-asm-challenge" aria-pressed="false">Desafío: OFF</button>
+              </div>
+              <div class="step-progress-bar"><div class="step-progress-fill" id="hero-asm-bar-fill" style="width:0%"></div></div>
+              <p class="ha-status" id="hero-asm-status">Selecciona una pieza de la bandeja o su huella brillante.</p>
+              <p class="ha-feedback" id="hero-asm-feedback"></p>
+              <div class="ha-learn-box">
+                <span class="ha-learn-tag">¿QUÉ HACE ESTA PIEZA?</span>
+                <strong id="hero-asm-part-name">—</strong>
+                <p id="hero-asm-part-desc"></p>
+              </div>
+              <div class="hq-actions">
+                <button type="button" class="wb-mini-btn" id="hero-asm-hint">Pista</button>
+                <button type="button" class="wb-mini-btn wb-mini-btn-primary" id="hero-asm-auto">Auto-colocar</button>
+                <button type="button" class="wb-mini-btn" id="hero-asm-restart">Reiniciar</button>
+                <button type="button" class="wb-mini-btn" id="hero-asm-exit">Salir</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inspector flotante al hacer clic/hover en pieza -->
+          <div class="hero-inspector-toast" id="hero-part-toast" hidden>
+            <span class="toast-badge" id="hero-part-category">COMPONENTE</span>
+            <strong id="hero-part-name">—</strong>
+            <p id="hero-part-desc"></p>
+          </div>
+
+          <!-- Controles flotantes inferiores + Dock con miniaturas 3D o Bandeja de Ensamblaje -->
+          <div class="hero-bottom-stack">
+            <div class="hero-toolbar" role="toolbar" aria-label="Controles de cámara 3D">
+              <button type="button" class="tool-btn is-active" data-view="iso">3/4</button>
+              <button type="button" class="tool-btn" data-view="top">Superior</button>
+              <button type="button" class="tool-btn" data-view="bottom">Inferior</button>
+              <button type="button" class="tool-btn" data-view="front">Frontal</button>
+              <span class="toolbar-sep" aria-hidden="true"></span>
+              <button type="button" class="tool-btn" id="btn-hero-rotate" aria-pressed="false">
+                <span class="icon-slot" data-icon="rotate-cw"></span>
+                Rotar
+              </button>
+              <button type="button" class="tool-btn" id="btn-hero-labels" aria-pressed="false">
+                <span class="icon-slot" data-icon="tag"></span>
+                Etiquetas
+              </button>
+              <span class="toolbar-sep" aria-hidden="true"></span>
+              <button type="button" class="tool-btn" id="btn-jump-quiz">
+                <span class="icon-slot" data-icon="crosshair"></span>
+                Encontrar pieza
+              </button>
+              <button type="button" class="tool-btn tool-btn-accent" id="btn-jump-assemble">
+                <span class="icon-slot" data-icon="wrench"></span>
+                Armar 3D
+              </button>
+            </div>
+
+            <div class="hero-board-dock" id="hero-board-dock" role="tablist" aria-label="Placas disponibles">
+              <button
+                type="button"
+                class="dock-board-btn is-active"
+                data-board-select="uno"
+                role="tab"
+                aria-selected="true"
+              >
+                <img class="dock-thumb" data-board-thumb="uno" alt="Miniatura 3D Arduino Uno R3" width="76" height="54" />
+                <strong>Arduino Uno R3</strong>
+              </button>
+              <button
+                type="button"
+                class="dock-board-btn"
+                data-board-select="esp32"
+                role="tab"
+                aria-selected="false"
+              >
+                <img class="dock-thumb" data-board-thumb="esp32" alt="Miniatura 3D ESP32 DevKit V1" width="76" height="54" />
+                <strong>ESP32 DevKit V1</strong>
+              </button>
+            </div>
+
+            <!-- Bandeja inferior flotante de piezas en modo Armar 3D -->
+            <div class="hero-assembly-tray" id="hero-assembly-tray" hidden aria-label="Bandeja de componentes para ensamblar"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 01 · MESA DE TRABAJO (WORKBENCH) -->
+      <section class="section-workbench" id="mesa-trabajo">
+        <div class="section-intro-grid">
+          <div class="section-intro-head">
+            <span class="section-num">01 · MESA DE TRABAJO</span>
+            <h2>Cablea en la mesa de trabajo</h2>
+            <p>
+              Arma paso a paso 20 misiones progresivas del Kit XL y Tecnología Geogo o diseña en Modo Libre:
+              coloca cada componente en la protoboard, traza cables jumper, ajusta sensores y ejecuta tu código Arduino C++.
+            </p>
+          </div>
+          <div class="feature-pillars">
+            <article class="pillar">
+              <span class="pillar-icon" data-icon="move"></span>
+              <div>
+                <h3>Armado guiado paso a paso</h3>
+                <p>Coloca piezas con animación en la protoboard, conecta pin por pin o practica a tu ritmo con Ctrl+Z.</p>
+              </div>
+            </article>
+            <article class="pillar">
+              <span class="pillar-icon" data-icon="shield-check"></span>
+              <div>
+                <h3>Validación eléctrica real 5 V / 3.3 V</h3>
+                <p>Detecta cortocircuitos, falta de resistencias en LEDs, bus I²C y sobrevoltaje en sensores de 3.3 V.</p>
+              </div>
+            </article>
+            <article class="pillar">
+              <span class="pillar-icon" data-icon="download"></span>
+              <div>
+                <h3>Guarda proyectos .json y código .ino</h3>
+                <p>Expande a pantalla completa, guarda tu avance entre clases y descarga el sketch listo para Arduino IDE.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="workbench-shell" id="workbench-shell">
+          <!-- Top Bar -->
+          <div class="wb-topbar">
+            <div class="wb-topbar-left">
+              <label class="wb-select-label" for="mission-select">Misión</label>
+              <select id="mission-select" class="wb-select" aria-label="Seleccionar misión o modo libre"></select>
+              <span class="mission-meta" id="mission-meta">Inicial · 5 min</span>
+              <span class="mission-progress" id="mission-progress" title="Misiones guiadas completadas">0 / 20 completadas</span>
+            </div>
+
+            <div class="wb-topbar-actions">
+              <button type="button" class="wb-btn wb-btn-run" id="wb-run-btn">
+                <span class="icon-slot" data-icon="play"></span>
+                <span>Ejecutar</span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-place-all-btn" title="Colocar animadamente los componentes de la misión">
+                <span class="icon-slot" data-icon="package-plus"></span>
+                <span>Colocar piezas</span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-autowire-btn" title="Colocar y cablear automáticamente esta misión">
+                <span class="icon-slot" data-icon="sparkles"></span>
+                <span>Cablear por mí</span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-clear-wires-btn" title="Eliminar todos los cables">
+                <span class="icon-slot" data-icon="scissors"></span>
+                <span>Quitar cables</span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-topview-btn" title="Vista cenital de la mesa">
+                <span class="icon-slot" data-icon="eye"></span>
+                <span>Vista superior</span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-sound-btn" aria-pressed="true" title="Activar/silenciar audio de simulación">
+                <span class="icon-slot" data-icon="volume-2"></span>
+                <span>Sonido</span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-lofi-btn" aria-pressed="false" title="Música ambiental Lofi">
+                <span class="icon-slot" data-icon="music"></span>
+                <span>Lofi</span>
+                <span class="lofi-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+              </button>
+              <button type="button" class="wb-btn" id="wb-fullscreen-btn" aria-pressed="false" title="Pantalla completa">
+                <span class="icon-slot" data-icon="maximize-2"></span>
+                <span>Pantalla completa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3-Column Body -->
+          <div class="wb-body">
+            <!-- Left Sidebar: Palette -->
+            <aside class="wb-sidebar" aria-label="Catálogo de placas y componentes">
+              <div class="wb-sidebar-head">
+                <strong>Componentes</strong>
+                <span class="wb-hint-chip">Clic para añadir</span>
+              </div>
+              <div class="wb-palette" id="wb-palette"></div>
+            </aside>
+
+            <!-- Center: 3D Bench -->
+            <div class="wb-stage">
+              <div class="wb-canvas-host" id="wb-canvas-host"></div>
+
+              <!-- Wire Color & Status HUD -->
+              <div class="wb-hud-top">
+                <div class="wb-status-pill" id="wb-sim-status">
+                  <span class="status-dot"></span>
+                  <span id="wb-sim-status-text">Mesa lista · Fase 1: Colocar</span>
+                </div>
+                <div class="wb-wire-palette" role="group" aria-label="Color del cable jumper">
+                  <span class="wire-palette-label">Cable:</span>
+                  <button type="button" class="wire-swatch is-active" data-wire-color="#c8402f" title="Rojo (VCC / +5V)" style="--swatch:#c8402f"></button>
+                  <button type="button" class="wire-swatch" data-wire-color="#22201c" title="Negro (GND)" style="--swatch:#22201c"></button>
+                  <button type="button" class="wire-swatch" data-wire-color="#2563eb" title="Azul (Señal digital)" style="--swatch:#2563eb"></button>
+                  <button type="button" class="wire-swatch" data-wire-color="#2c7a4b" title="Verde (Analógico / I2C)" style="--swatch:#2c7a4b"></button>
+                  <button type="button" class="wire-swatch" data-wire-color="#d4a007" title="Dorado (PWM / Reloj)" style="--swatch:#d4a007"></button>
+                  <button type="button" class="wire-swatch" data-wire-color="#7a4fb3" title="Violeta (Datos / SPI)" style="--swatch:#7a4fb3"></button>
+                </div>
+              </div>
+
+              <!-- Inspector flotante estilo Tinkercad para el componente seleccionado -->
+              <div class="wb-comp-inspector" id="wb-comp-inspector" hidden></div>
+
+              <!-- Tarjeta flotante "Pruébalo" en vivo (botones, potenciómetro, sensores) -->
+              <div class="wb-tryit-card" id="wb-tryit-card" hidden aria-label="Controles rápidos de prueba en vivo"></div>
+
+              <!-- Tooltip oscuro contextual junto al cursor -->
+              <div class="wb-hover-tooltip" id="wb-hover-tooltip" hidden></div>
+
+              <!-- Marcadores guía 3D (colocación azul-dorado y cableado naranja) -->
+              <div class="wb-guide-layer" id="wb-guide-layer"></div>
+
+              <!-- Diagnostics Banner -->
+              <div class="wb-alert-banner" id="wb-alert-banner" hidden></div>
+
+              <!-- Selected Pin / Breadboard Track Hint -->
+              <div class="wb-hud-bottom">
+                <span id="wb-pin-hint">
+                  Coloca los componentes en la protoboard o pulsa "Colocar piezas". Clic derecho en un cable para quitarlo.
+                </span>
+                <div class="wb-bench-quick">
+                  <button type="button" class="wb-mini-btn" id="wb-save-json-btn" title="Guardar circuito (.json)">
+                    <span class="icon-slot" data-icon="save"></span> Guardar
+                  </button>
+                  <button type="button" class="wb-mini-btn" id="wb-load-json-btn" title="Abrir circuito (.json)">
+                    <span class="icon-slot" data-icon="upload"></span> Abrir
+                  </button>
+                  <input type="file" id="wb-load-json-input" accept=".json" hidden />
+                  <button type="button" class="wb-mini-btn" id="wb-toggle-bb-btn" aria-pressed="true">
+                    Protoboard
+                  </button>
+                  <button type="button" class="wb-mini-btn" id="wb-reset-bench-btn">
+                    Limpiar mesa
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Inspector: Steps / Code / Serial / Environment -->
+            <aside class="wb-inspector" aria-label="Panel de guía, código y monitor serial">
+              <div class="wb-tabs" role="tablist">
+                <button type="button" class="wb-tab is-active" data-tab="steps" role="tab" aria-selected="true">Pasos</button>
+                <button type="button" class="wb-tab" data-tab="code" role="tab" aria-selected="false">Código</button>
+                <button type="button" class="wb-tab" data-tab="serial" role="tab" aria-selected="false">Serial</button>
+                <button type="button" class="wb-tab" data-tab="env" role="tab" aria-selected="false">Sensores</button>
+              </div>
+
+              <div class="wb-tab-panels">
+                <div class="wb-panel is-active" data-panel="steps" id="wb-panel-steps"></div>
+
+                <div class="wb-panel" data-panel="code" id="wb-panel-code">
+                  <div class="code-toolbar">
+                    <span class="code-filename" id="code-filename">sketch_geogo.ino</span>
+                    <div class="code-toolbar-btns">
+                      <button type="button" class="wb-mini-btn" id="btn-reset-code" title="Restablecer código original">
+                        <span class="icon-slot" data-icon="rotate-ccw"></span> Restablecer
+                      </button>
+                      <button type="button" class="wb-mini-btn" id="btn-copy-code">
+                        <span class="icon-slot" data-icon="copy"></span> Copiar
+                      </button>
+                      <button type="button" class="wb-mini-btn wb-mini-btn-primary" id="btn-download-ino">
+                        <span class="icon-slot" data-icon="download"></span> .ino
+                      </button>
+                    </div>
+                  </div>
+                  <div class="code-editor-host" id="code-editor-host"></div>
+                  <div class="code-error-box" id="code-error-box" hidden></div>
+                </div>
+
+                <div class="wb-panel" data-panel="serial" id="wb-panel-serial">
+                  <div class="serial-toolbar">
+                    <span class="serial-baud">Monitor Serial · 9600 / 115200 baudios</span>
+                    <button type="button" class="wb-mini-btn" id="btn-clear-serial">Limpiar</button>
+                  </div>
+                  <pre class="serial-output" id="serial-output" aria-live="polite"></pre>
+                  <form class="serial-input-row" id="serial-form">
+                    <input
+                      type="text"
+                      id="serial-input"
+                      placeholder="Enviar texto al puerto Serial..."
+                      aria-label="Enviar mensaje al monitor serial"
+                    />
+                    <button type="submit" class="wb-mini-btn wb-mini-btn-primary">Enviar</button>
+                  </form>
+                </div>
+
+                <div class="wb-panel" data-panel="env" id="wb-panel-env">
+                  <p class="env-intro">
+                    Ajusta las variables físicas del entorno para probar cómo responden tus sensores
+                    en tiempo real antes de pasar al circuito físico.
+                  </p>
+                  <div id="wb-env-controls" class="env-controls-list"></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- 02 · PUENTE VISUAL HACIA CLASES DE ELECTRÓNICA -->
+      <section class="section-lesson" id="leccion">
+        <div class="lesson-container">
+          <div class="lesson-bridge-head">
+            <div class="section-intro-head">
+              <span class="section-num">02 · ACADEMIA VISUAL GEOGO</span>
+              <h2>Aprende la base antes de conectar</h2>
+              <p>
+                Lecciones gráficas, interactivas y animadas en una página dedicada: Ley de Ohm,
+                circuitos en serie y paralelo, rayos X de la protoboard, pinouts y diagramas esenciales.
+              </p>
+            </div>
+            <a class="btn-primary" href="./clases.html">
+              <span class="icon-slot" data-icon="compass"></span>
+              Abrir Clases Interactivas →
+            </a>
+          </div>
+
+          <div class="lesson-preview-grid">
+            <a class="lesson-preview-card" href="./clases.html#mod-ohm">
+              <span class="lp-tag">MÓDULO 01 · LEY DE OHM</span>
+              <h3>Voltaje, Corriente y Resistencia</h3>
+              <p>Calcula en vivo cuántos mA recibe un LED, mira sus 4 bandas de color y evita quemarlo.</p>
+            </a>
+            <a class="lesson-preview-card" href="./clases.html#mod-serie-paralelo">
+              <span class="lp-tag">MÓDULO 02 · CIRCUITOS</span>
+              <h3>Serie vs. Paralelo en vivo</h3>
+              <p>Desconecta ramas animadas para ver por qué en serie se apagan todos y en paralelo siguen.</p>
+            </a>
+            <a class="lesson-preview-card" href="./clases.html#mod-protoboard">
+              <span class="lp-tag">MÓDULO 03 · HARDWARE</span>
+              <h3>Rayos X de Protoboard y Pinouts</h3>
+              <p>Toca cualquier orificio para ver sus láminas internas y explora cada pin de Uno y ESP32.</p>
+            </a>
+            <a class="lesson-preview-card" href="./clases.html#mod-diagramas">
+              <span class="lp-tag">MÓDULO 04 · CONEXIÓN Y CÓDIGO</span>
+              <h3>Diagramas, PWM y setup() / loop()</h3>
+              <p>Esquemas animados de botón PULLUP, I²C + Level Shifter y osciloscopio PWM interactivo.</p>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 03 · PRÁCTICA 3D (LANZADORES DIRECTOS AL VISOR HERO) -->
+      <section class="section-practice" id="practica">
+        <div class="practice-container">
+          <header class="section-intro-head">
+            <span class="section-num">03 · PRÁCTICA CON TUS MANOS</span>
+            <h2>Reconoce y arma la placa en el visor 3D</h2>
+            <p>
+              Ambas actividades se ejecutan directamente sobre el visor 3D superior para que gires la placa,
+              hagas clic en sus huellas y practiques sin subir ni bajar la pantalla.
+            </p>
+          </header>
+
+          <div class="practice-cards">
+            <article class="practice-card">
+              <div class="practice-meta">
+                <span class="practice-tag">QUIZ 3D · 6 PREGUNTAS</span>
+                <h3>Encuentra la pieza</h3>
+              </div>
+              <p>
+                Identifica microcontroladores, reguladores, puertos y buses haciendo clic sobre el modelo 3D.
+                Las etiquetas se ocultan automáticamente durante el desafío.
+              </p>
+              <button type="button" class="btn-primary" id="btn-start-quiz">
+                <span class="icon-slot" data-icon="crosshair"></span>
+                Abrir Quiz 3D en el visor
+              </button>
+            </article>
+
+            <article class="practice-card">
+              <div class="practice-meta">
+                <span class="practice-tag">ENSAMBLAJE · PIEZAS BAJAS PRIMERO</span>
+                <h3>Desarma y vuelve a armar</h3>
+              </div>
+              <p>
+                Desarma la placa completa, sigue el orden técnico de soldadura, observa cada huella pulsante
+                sobre el PCB y aprende qué hace cada bloque al instalarlo.
+              </p>
+              <button type="button" class="btn-primary" id="btn-start-assembly">
+                <span class="icon-slot" data-icon="wrench"></span>
+                Abrir Ensamblaje 3D en el visor
+              </button>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 · COMPARAR PLACAS -->
+      <section class="section-compare" id="comparar">
+        <div class="compare-container" id="compare-root"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <img src="./logoliceo.png" alt="Logo Liceo San Nicolás" width="32" height="32" />
+          <div>
+            <strong>Liceo Bicentenario de Excelencia Polivalente San Nicolás</strong>
+            <span>Área Premilitar · Tecnología Geogo — Simulador Educativo 3D (v0.1.0)</span>
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="#hero">Placas 3D</a>
+          <a href="#mesa-trabajo">Mesa de trabajo</a>
+          <a href="./clases.html">Clases</a>
+          <a href="#practica">Práctica 3D</a>
+          <a href="#comparar">Comparar</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

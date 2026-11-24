@@ -1,0 +1,154 @@
+:root {
+  /* Paleta cálida editorial fiel a la referencia + identidad Liceo San Nicolás */
+  --paper: #f1eadc;
+  --paper-hi: #fbf7ee;
+  --paper-2: #ebe4d7;
+  --paper-lo: #e8dfcc;
+  --card: #fbf8f1;
+  --border: rgba(29, 27, 22, 0.14);
+  --border-strong: rgba(29, 27, 22, 0.24);
+  --rule-soft: rgba(29, 27, 22, 0.08);
+
+  /* Tinta y contraste */
+  --ink: #1d1b16;
+  --ink-2: rgba(29, 27, 22, 0.78);
+  --ink-3: rgba(29, 27, 22, 0.58);
+
+  /* Identidad Liceo Bicentenario San Nicolás */
+  --navy: #0b1c3d;
+  --navy-2: #1e3a5f;
+  --navy-soft: rgba(11, 28, 61, 0.08);
+  --gold: #c99700;
+  --gold-bright: #f6c101;
+  --gold-ink: #785500;
+  --gold-soft: rgba(201, 151, 0, 0.14);
+
+  /* Acento técnico secundario */
+  --teal: #0d7d8a;
+  --teal-soft: rgba(13, 125, 138, 0.1);
+
+  /* Estados de simulación */
+  --ok: #2c7a4b;
+  --ok-soft: rgba(44, 122, 75, 0.12);
+  --warn: #b45309;
+  --warn-soft: rgba(180, 83, 9, 0.12);
+  --bad: #b24a2c;
+  --bad-soft: rgba(178, 74, 44, 0.12);
+
+  /* Código de color de pines eléctricos */
+  --k-pwr: #c8402f;
+  --k-gnd: #2b2823;
+  --k-dig: #2f6fb5;
+  --k-ana: #2e8b57;
+  --k-com: #7a4fb3;
+  --k-ctl: #d9822b;
+  --k-nc: #9a958a;
+
+  /* Paneles translúcidos sobre 3D (Frosted Glass idéntico en tacto a la referencia) */
+  --frost-bg: rgba(250, 246, 238, 0.94);
+  --frost-blur: blur(22px) saturate(1.25);
+  --frost-shadow: 0 0 0 1px rgba(29, 27, 22, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
+    0 24px 46px -26px rgba(40, 28, 10, 0.5),
+    0 4px 12px -4px rgba(40, 28, 10, 0.14);
+
+  /* Tipografía */
+  --serif: "Crimson Pro", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+
+  --header-h: 54px;
+  --gutter: clamp(16px, 3.4vw, 48px);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-h) + 16px);
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--navy-2);
+}
+
+:focus-visible {
+  outline: 2px solid var(--navy);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  background: var(--navy);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  z-index: 200;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  left: 16px;
+}
+
+.icon-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.icon-slot svg {
+  width: 15px;
+  height: 15px;
+}

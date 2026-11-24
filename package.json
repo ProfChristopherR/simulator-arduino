@@ -1,0 +1,28 @@
+{
+  "name": "liceo-sn-robotics-sim",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Simulador 3D de Arduino Uno R3, ESP32 y Protoboard — Liceo Bicentenario de Excelencia Polivalente San Nicolás (Área Premilitar · Tecnología Geogo)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "node -e \"import('esbuild').then(e => e.build({entryPoints:['tests/simulator.test.ts'],bundle:true,platform:'node',format:'esm',packages:'external',outfile:'tests/.out.mjs'})).then(() => import('node:child_process').then(cp => { const r = cp.spawnSync(process.execPath, ['--test', 'tests/.out.mjs'], {stdio:'inherit'}); import('node:fs').then(fs => fs.rmSync('tests/.out.mjs', {force:true})); process.exit(r.status ?? 1); }))\""
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.7.1",
+    "@codemirror/lang-cpp": "^6.0.2",
+    "@codemirror/language": "^6.10.3",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.35.0",
+    "@lezer/highlight": "^1.2.1",
+    "lucide": "^0.460.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
+  }
+}
