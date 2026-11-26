@@ -65,6 +65,79 @@ function bootstrap(): void {
   window.addEventListener('scroll', syncHeaderScroll, { passive: true });
   syncHeaderScroll();
 
+  // Glassy Navbar V10: píldora deslizante con resorte en desktop
+  const mainNav = document.getElementById('main-nav');
+  const navPill = document.getElementById('nav-glass-pill') as HTMLElement | null;
+  if (mainNav && navPill) {
+    const topNavLinks = Array.from(mainNav.querySelectorAll<HTMLAnchorElement>(':scope > a, :scope > .nav-dropdown-wrap > a'));
+    let activeNavEl: HTMLAnchorElement | null = topNavLinks[0] ?? null;
+
+    const moveNavPill = (el: HTMLElement | null) => {
+      if (!el || mainNav.offsetParent === null) {
+        navPill.classList.remove('is-visible');
+        return;
+      }
+      const navRect = mainNav.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      navPill.style.width = `${elRect.width}px`;
+      navPill.style.transform = `translate3d(${elRect.left - navRect.left}px, 0, 0)`;
+      navPill.classList.add('is-visible');
+    };
+
+    topNavLinks.forEach((link) => {
+      link.addEventListener('mouseenter', () => moveNavPill(link));
+      link.addEventListener('focus', () => moveNavPill(link));
+    });
+    mainNav.addEventListener('mouseleave', () => moveNavPill(activeNavEl));
+    window.addEventListener('resize', () => moveNavPill(activeNavEl));
+
+    if ('IntersectionObserver' in window) {
+      const secIds = ['hero', 'mesa-trabajo', 'leccion', 'practica', 'comparar'];
+      const obs = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              const targetLink = topNavLinks.find((a) => a.dataset.navSection === entry.target.id);
+              if (targetLink) {
+                activeNavEl = targetLink;
+                topNavLinks.forEach((a) => a.classList.toggle('is-nav-active', a === targetLink));
+                moveNavPill(activeNavEl);
+              }
+            }
+          }
+        },
+        { rootMargin: '-35% 0px -50% 0px', threshold: 0.05 }
+      );
+      secIds.forEach((id) => {
+        const sec = document.getElementById(id);
+        if (sec) obs.observe(sec);
+      });
+    }
+    requestAnimationFrame(() => moveNavPill(activeNavEl));
+  }
+
+  // Micro-animaciones GPU sutiles al revelar secciones
+  const revealTargets = document.querySelectorAll<HTMLElement>(
+    '.section-intro-head, .pillar, .lesson-preview-card, .practice-card'
+  );
+  revealTargets.forEach((el) => el.classList.add('reveal-up'));
+  if ('IntersectionObserver' in window) {
+    const revObs = new IntersectionObserver(
+      (entries, observer) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-in');
+            observer.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
+    );
+    revealTargets.forEach((el) => revObs.observe(el));
+  } else {
+    revealTargets.forEach((el) => el.classList.add('is-in'));
+  }
+
   const mobBtn = document.getElementById('mobile-nav-toggle') as HTMLButtonElement | null;
   const mobDrawer = document.getElementById('mobile-nav-drawer') as HTMLElement | null;
   if (mobBtn && mobDrawer) {
@@ -226,6 +299,17 @@ function bootstrap(): void {
   });
 
   selectBoard('uno');
+
+  // Ocultar pantalla de carga suavemente cuando la escena 3D ya está lista
+  const hidePreloader = () => {
+    const pre = document.getElementById('app-preloader');
+    if (pre && !pre.classList.contains('is-done')) {
+      pre.classList.add('is-done');
+      setTimeout(() => pre.remove(), 520);
+    }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(hidePreloader));
+  window.setTimeout(hidePreloader, 1800);
 }
 
 bootstrap();

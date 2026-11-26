@@ -12,11 +12,98 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      .app-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #151515;
+        color: #eee3cc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        transition: opacity 460ms cubic-bezier(0.22, 1, 0.36, 1), transform 460ms cubic-bezier(0.22, 1, 0.36, 1), visibility 460ms;
+      }
+      .app-preloader.is-done {
+        opacity: 0;
+        transform: scale(1.02);
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .pl-core {
+        position: relative;
+        width: 88px;
+        height: 88px;
+        display: grid;
+        place-items: center;
+      }
+      .pl-ring {
+        position: absolute;
+        inset: 0;
+        animation: plSpin 2.4s linear infinite;
+      }
+      .pl-logo {
+        width: 42px;
+        height: 42px;
+        object-fit: contain;
+        border-radius: 50%;
+      }
+      .pl-title {
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: #eee3cc;
+      }
+      .pl-sub {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #00c2b5;
+      }
+      .pl-bar {
+        width: 180px;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(238, 227, 204, 0.14);
+        overflow: hidden;
+      }
+      .pl-bar-fill {
+        width: 48%;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #00c2b5, #5ef2e6);
+        animation: plSlide 1.15s ease-in-out infinite alternate;
+      }
+      @keyframes plSpin { to { transform: rotate(360deg); } }
+      @keyframes plSlide {
+        0% { transform: translateX(-35%); }
+        100% { transform: translateX(135%); }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-preloader" class="app-preloader" role="status" aria-live="polite" aria-label="Cargando simulador 3D">
+      <div class="pl-core">
+        <svg class="pl-ring" viewBox="0 0 88 88" aria-hidden="true">
+          <circle cx="44" cy="44" r="39" fill="none" stroke="rgba(238,227,204,0.16)" stroke-width="2" />
+          <path d="M44 5 A39 39 0 0 1 83 44" fill="none" stroke="#00c2b5" stroke-width="2.5" stroke-linecap="round" />
+        </svg>
+        <img class="pl-logo" src="./logoliceo.png" alt="" width="42" height="42" />
+      </div>
+      <div style="text-align:center;display:grid;gap:4px">
+        <div class="pl-title">Laboratorio Geogo · San Nicolás</div>
+        <div class="pl-sub">INICIANDO ENTORNO 3D</div>
+      </div>
+      <div class="pl-bar"><div class="pl-bar-fill"></div></div>
+    </div>
+
     <a class="skip-link" href="#mesa-trabajo">Saltar a la mesa de trabajo</a>
 
     <header class="site-header is-hero-overlay" id="top">
@@ -35,12 +122,47 @@
           </div>
         </a>
 
-        <nav class="main-nav" aria-label="Navegación principal">
-          <a href="#hero">Placas</a>
-          <a href="#mesa-trabajo">Mesa de trabajo</a>
-          <a href="./clases.html">Clases</a>
-          <a href="#practica">Práctica 3D</a>
-          <a href="#comparar">Comparar</a>
+        <nav class="main-nav" id="main-nav" aria-label="Navegación principal">
+          <span class="nav-glass-pill" id="nav-glass-pill" aria-hidden="true"></span>
+          <a href="#hero" data-nav-section="hero">Placas</a>
+          <a href="#mesa-trabajo" data-nav-section="mesa-trabajo">Mesa de trabajo</a>
+          <div class="nav-dropdown-wrap" id="nav-clases-wrap">
+            <a href="./clases.html" data-nav-section="leccion" aria-haspopup="true" aria-expanded="false">Clases</a>
+            <div class="nav-glass-mega" role="region" aria-label="Módulos de clases interactivas">
+              <div class="ngm-head">
+                <span>ACADEMIA VISUAL · 9 LABORATORIOS</span>
+                <a href="./clases.html">Ver todos →</a>
+              </div>
+              <div class="ngm-grid">
+                <a class="ngm-item" href="./clases.html#mod-electricidad">
+                  <span class="ngm-dot">01</span>
+                  <div><strong>Electricidad y Potencia</strong><small>Analogía del agua y límites en Watts</small></div>
+                </a>
+                <a class="ngm-item" href="./clases.html#mod-ohm">
+                  <span class="ngm-dot">02</span>
+                  <div><strong>Ley de Ohm + LED</strong><small>Ecuaciones vivas y protección LED</small></div>
+                </a>
+                <a class="ngm-item" href="./clases.html#mod-diagramas">
+                  <span class="ngm-dot">03</span>
+                  <div><strong>Diagramas Eléctricos</strong><small>9 símbolos animados y plano real</small></div>
+                </a>
+                <a class="ngm-item" href="./clases.html#mod-protoboard">
+                  <span class="ngm-dot">05</span>
+                  <div><strong>Protoboard Rayos X</strong><small>Simulador de pistas y rieles +/−</small></div>
+                </a>
+                <a class="ngm-item" href="./clases.html#mod-pinouts">
+                  <span class="ngm-dot">06</span>
+                  <div><strong>Pinouts Reales</strong><small>Mapa de Arduino Uno y ESP32</small></div>
+                </a>
+                <a class="ngm-item" href="./clases.html#mod-codigo">
+                  <span class="ngm-dot">09</span>
+                  <div><strong>Arduino C++</strong><small>Librerías, variables, funciones y ciclos</small></div>
+                </a>
+              </div>
+            </div>
+          </div>
+          <a href="#practica" data-nav-section="practica">Práctica 3D</a>
+          <a href="#comparar" data-nav-section="comparar">Comparar</a>
         </nav>
 
         <div class="header-actions">
@@ -68,7 +190,7 @@
               </button>
             </div>
           </div>
-          <span class="version-pill" title="Versión del simulador">v0.2.0</span>
+          <span class="version-pill" title="Versión del simulador">v0.3.0</span>
           <button
             type="button"
             class="mobile-nav-toggle"
@@ -244,7 +366,7 @@
         <div class="section-intro-grid">
           <div class="section-intro-head">
             <span class="section-num">01 · MESA DE TRABAJO</span>
-            <h2>Cablea en la mesa de trabajo</h2>
+            <h2>Cablea en la <span class="accent-word">mesa de trabajo</span></h2>
             <p>
               Arma paso a paso 20 misiones progresivas del Kit XL y Tecnología Geogo o diseña en Modo Libre:
               coloca cada componente en la protoboard, traza cables jumper, ajusta sensores y ejecuta tu código Arduino C++.
@@ -362,10 +484,22 @@
           <!-- 3-Column Body -->
           <div class="wb-body">
             <!-- Left Sidebar: Palette -->
-            <aside class="wb-sidebar" aria-label="Catálogo de placas y componentes">
+            <aside class="wb-sidebar" id="wb-sidebar" aria-label="Catálogo de placas y componentes">
               <div class="wb-sidebar-head">
-                <strong>Componentes</strong>
-                <span class="wb-hint-chip">Clic para añadir</span>
+                <strong class="wb-sidebar-title">Componentes</strong>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span class="wb-hint-chip">Clic para añadir</span>
+                  <button
+                    type="button"
+                    class="wb-sidebar-collapse-btn"
+                    id="wb-sidebar-toggle"
+                    aria-expanded="true"
+                    title="Contraer o expandir paleta de componentes"
+                    aria-label="Contraer o expandir paleta de componentes"
+                  >
+                    ‹
+                  </button>
+                </div>
               </div>
               <div class="wb-palette-search-wrap">
                 <span class="icon-slot" data-icon="search"></span>
@@ -534,7 +668,7 @@
           <div class="lesson-bridge-head">
             <div class="section-intro-head">
               <span class="section-num">02 · ACADEMIA VISUAL GEOGO</span>
-              <h2>Aprende la base antes de conectar</h2>
+              <h2>Aprende la base <span class="accent-word">antes de conectar</span></h2>
               <p>
                 Lecciones gráficas, interactivas y animadas en una página dedicada: Ley de Ohm,
                 circuitos en serie y paralelo, rayos X de la protoboard, pinouts y diagramas esenciales.
@@ -576,7 +710,7 @@
         <div class="practice-container">
           <header class="section-intro-head">
             <span class="section-num">03 · PRÁCTICA CON TUS MANOS</span>
-            <h2>Reconoce y arma la placa en el visor 3D</h2>
+            <h2>Reconoce y arma la placa <span class="accent-word">en el visor 3D</span></h2>
             <p>
               Ambas actividades se ejecutan directamente sobre el visor 3D superior para que gires la placa,
               hagas clic en sus huellas y practiques sin subir ni bajar la pantalla.
@@ -629,7 +763,7 @@
           <img src="./logoliceo.png" alt="Logo Liceo San Nicolás" width="32" height="32" />
           <div>
             <strong>Liceo Bicentenario de Excelencia Polivalente San Nicolás</strong>
-            <span>Área Premilitar · Tecnología Geogo — Simulador Educativo 3D (v0.1.0)</span>
+            <span>Área Premilitar · Tecnología Geogo — Simulador Educativo 3D (v0.3.0)</span>
           </div>
         </div>
         <div class="footer-links">

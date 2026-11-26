@@ -173,7 +173,7 @@ export class WorkbenchController {
     this.loadCompletedMissions();
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xdfd6c5);
+    this.scene.background = new THREE.Color(0xe4d7bc);
 
     this.camera = new THREE.PerspectiveCamera(
       36,
@@ -1373,6 +1373,21 @@ export class WorkbenchController {
 
     document.getElementById('wb-palette-search')?.addEventListener('input', (e) => {
       this.renderPalette((e.target as HTMLInputElement).value);
+    });
+
+    const sidebarToggle = document.getElementById('wb-sidebar-toggle');
+    sidebarToggle?.addEventListener('click', () => {
+      const shell = document.getElementById('workbench-shell');
+      if (!shell) return;
+      const collapsed = shell.classList.toggle('is-sidebar-collapsed');
+      sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+      setTimeout(() => {
+        const w = Math.max(1, this.host.clientWidth);
+        const h = Math.max(1, this.host.clientHeight);
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+      }, 320);
     });
 
     const libDrawer = document.getElementById('wb-lib-drawer');

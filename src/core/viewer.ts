@@ -55,8 +55,8 @@ export class HeroBoardViewer {
     this.callbacks = callbacks;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xdfd6c5);
-    this.scene.fog = new THREE.Fog(0xdfd6c5, 22, 48);
+    this.scene.background = new THREE.Color(0xe4d7bc);
+    this.scene.fog = new THREE.Fog(0xe4d7bc, 22, 48);
 
     this.camera = new THREE.PerspectiveCamera(
       34,

@@ -12,12 +12,99 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,500;0,600;0,700;1,500;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      .app-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #151515;
+        color: #eee3cc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        transition: opacity 460ms cubic-bezier(0.22, 1, 0.36, 1), transform 460ms cubic-bezier(0.22, 1, 0.36, 1), visibility 460ms;
+      }
+      .app-preloader.is-done {
+        opacity: 0;
+        transform: scale(1.02);
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .pl-core {
+        position: relative;
+        width: 88px;
+        height: 88px;
+        display: grid;
+        place-items: center;
+      }
+      .pl-ring {
+        position: absolute;
+        inset: 0;
+        animation: plSpin 2.4s linear infinite;
+      }
+      .pl-logo {
+        width: 42px;
+        height: 42px;
+        object-fit: contain;
+        border-radius: 50%;
+      }
+      .pl-title {
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: #eee3cc;
+      }
+      .pl-sub {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #00c2b5;
+      }
+      .pl-bar {
+        width: 180px;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(238, 227, 204, 0.14);
+        overflow: hidden;
+      }
+      .pl-bar-fill {
+        width: 48%;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #00c2b5, #5ef2e6);
+        animation: plSlide 1.15s ease-in-out infinite alternate;
+      }
+      @keyframes plSpin { to { transform: rotate(360deg); } }
+      @keyframes plSlide {
+        0% { transform: translateX(-35%); }
+        100% { transform: translateX(135%); }
+      }
+    </style>
   </head>
   <body>
-    <header class="site-header">
+    <div id="app-preloader" class="app-preloader" role="status" aria-live="polite" aria-label="Cargando academia visual">
+      <div class="pl-core">
+        <svg class="pl-ring" viewBox="0 0 88 88" aria-hidden="true">
+          <circle cx="44" cy="44" r="39" fill="none" stroke="rgba(238,227,204,0.16)" stroke-width="2" />
+          <path d="M44 5 A39 39 0 0 1 83 44" fill="none" stroke="#00c2b5" stroke-width="2.5" stroke-linecap="round" />
+        </svg>
+        <img class="pl-logo" src="./logoliceo.png" alt="" width="42" height="42" />
+      </div>
+      <div style="text-align:center;display:grid;gap:4px">
+        <div class="pl-title">Academia Visual Geogo</div>
+        <div class="pl-sub">CARGANDO LABORATORIOS INTERACTIVOS</div>
+      </div>
+      <div class="pl-bar"><div class="pl-bar-fill"></div></div>
+    </div>
+
+    <header class="site-header is-glass-floating" id="clases-top">
       <div class="header-inner">
         <a class="brand" href="./index.html" aria-label="Volver al simulador principal">
           <img
@@ -33,16 +120,17 @@
           </div>
         </a>
 
-        <nav class="main-nav" aria-label="Módulos de clase">
-          <a href="#mod-electricidad">Electricidad</a>
-          <a href="#mod-ohm">Ley de Ohm</a>
-          <a href="#mod-diagramas">Diagramas</a>
-          <a href="#mod-serie-paralelo">Serie / Paralelo</a>
-          <a href="#mod-protoboard">Protoboard</a>
-          <a href="#mod-pinouts">Pinouts</a>
-          <a href="#mod-pullup">Pull-Up</a>
-          <a href="#mod-pwm">PWM</a>
-          <a href="#mod-codigo">Programación</a>
+        <nav class="main-nav" id="clases-main-nav" aria-label="Módulos de clase">
+          <span class="nav-glass-pill" id="clases-nav-pill" aria-hidden="true"></span>
+          <a href="#mod-electricidad" data-nav-section="mod-electricidad">Electricidad</a>
+          <a href="#mod-ohm" data-nav-section="mod-ohm">Ley de Ohm</a>
+          <a href="#mod-diagramas" data-nav-section="mod-diagramas">Diagramas</a>
+          <a href="#mod-serie-paralelo" data-nav-section="mod-serie-paralelo">Serie / Paralelo</a>
+          <a href="#mod-protoboard" data-nav-section="mod-protoboard">Protoboard</a>
+          <a href="#mod-pinouts" data-nav-section="mod-pinouts">Pinouts</a>
+          <a href="#mod-pullup" data-nav-section="mod-pullup">Pull-Up</a>
+          <a href="#mod-pwm" data-nav-section="mod-pwm">PWM</a>
+          <a href="#mod-codigo" data-nav-section="mod-codigo">Programación</a>
         </nav>
 
         <div class="header-actions">
@@ -74,12 +162,37 @@
       </nav>
     </header>
 
+    <!-- Glassy Sidebar V10 flotante (escritorio ancho) -->
+    <aside class="glass-rail" id="clases-glass-rail" aria-label="Navegación rápida de módulos">
+      <button type="button" class="gr-toggle" id="clases-rail-toggle" aria-expanded="false" title="Expandir o contraer índice lateral">
+        <span class="gr-dot">☰</span>
+        <span class="gr-label">Módulos (09)</span>
+      </button>
+      <div class="gr-sep"></div>
+      <nav class="gr-list">
+        <a class="gr-item is-active" href="#mod-electricidad" data-rail-section="mod-electricidad"><span class="gr-num">01</span><span class="gr-label">Electricidad y Potencia</span></a>
+        <a class="gr-item" href="#mod-ohm" data-rail-section="mod-ohm"><span class="gr-num">02</span><span class="gr-label">Ley de Ohm + LED</span></a>
+        <a class="gr-item" href="#mod-diagramas" data-rail-section="mod-diagramas"><span class="gr-num">03</span><span class="gr-label">Diagramas Eléctricos</span></a>
+        <a class="gr-item" href="#mod-serie-paralelo" data-rail-section="mod-serie-paralelo"><span class="gr-num">04</span><span class="gr-label">Serie vs. Paralelo</span></a>
+        <a class="gr-item" href="#mod-protoboard" data-rail-section="mod-protoboard"><span class="gr-num">05</span><span class="gr-label">Protoboard + Cables</span></a>
+        <a class="gr-item" href="#mod-pinouts" data-rail-section="mod-pinouts"><span class="gr-num">06</span><span class="gr-label">Pinouts Reales</span></a>
+        <a class="gr-item" href="#mod-pullup" data-rail-section="mod-pullup"><span class="gr-num">07</span><span class="gr-label">Pull-Up / Pull-Down</span></a>
+        <a class="gr-item" href="#mod-pwm" data-rail-section="mod-pwm"><span class="gr-num">08</span><span class="gr-label">Señal PWM</span></a>
+        <a class="gr-item" href="#mod-codigo" data-rail-section="mod-codigo"><span class="gr-num">09</span><span class="gr-label">Arduino C++</span></a>
+      </nav>
+      <div class="gr-sep"></div>
+      <a class="gr-item gr-cta" href="./index.html#mesa-trabajo" title="Ir al Simulador 3D">
+        <span class="gr-num">3D</span>
+        <span class="gr-label">Abrir Simulador 3D</span>
+      </a>
+    </aside>
+
     <main class="clases-main">
       <!-- HERO ACADEMIA -->
       <section class="clases-hero">
         <div class="clases-container">
           <span class="section-num">ÁREA PREMILITAR · TECNOLOGÍA GEOGO</span>
-          <h1>Domina la electrónica antes de cablear</h1>
+          <h1>Domina la electrónica <span class="accent-word">antes de cablear</span></h1>
           <p class="clases-lead">
             Nueve laboratorios visuales e interactivos con simulaciones animadas en vivo. Mueve cada control,
             prueba qué pasa si sobrecargas un LED o una resistencia y lee diagramas eléctricos reales.

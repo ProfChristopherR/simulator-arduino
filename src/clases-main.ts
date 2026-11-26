@@ -87,7 +87,7 @@ function mountModElectricidad(): void {
             <!-- Estanque izquierdo (Voltaje = Altura/Presión) -->
             <rect x="26" y="34" width="96" height="168" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
             <rect id="water-tank-fill" x="30" y="96" width="88" height="102" rx="4" fill="#0284c7" opacity="0.88" />
-            <text x="74" y="24" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="11" font-weight="bold">PRESIÓN (VOLTAJE)</text>
+            <text x="74" y="24" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="11" font-weight="bold">PRESIÓN (VOLTAJE)</text>
             <rect x="38" y="40" width="72" height="22" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#38bdf8" stroke-width="1" />
             <text id="water-v-txt" x="74" y="55" text-anchor="middle" fill="#fff" font-family="monospace" font-size="13" font-weight="bold">5.0 V</text>
 
@@ -98,8 +98,8 @@ function mountModElectricidad(): void {
             <!-- Válvula de estrangulamiento (Resistencia) -->
             <g transform="translate(215, 134)">
               <rect x="0" y="14" width="110" height="52" rx="8" fill="#334155" stroke="#94a3b8" stroke-width="1.8" />
-              <rect id="water-valve-top" x="34" y="14" width="42" height="14" fill="#ff7a1a" />
-              <rect id="water-valve-bot" x="34" y="52" width="42" height="14" fill="#ff7a1a" />
+              <rect id="water-valve-top" x="34" y="14" width="42" height="14" fill="#00c2b5" />
+              <rect id="water-valve-bot" x="34" y="52" width="42" height="14" fill="#00c2b5" />
               <text x="55" y="6" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="10">VÁLVULA (R)</text>
               <text id="water-r-txt" x="55" y="84" text-anchor="middle" fill="#fbbf24" font-family="monospace" font-size="12" font-weight="bold">220 Ω</text>
             </g>
@@ -112,9 +112,9 @@ function mountModElectricidad(): void {
                 <line x1="0" y1="-28" x2="0" y2="28" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
                 <line x1="-20" y1="-20" x2="20" y2="20" stroke="#7dd3fc" stroke-width="4" stroke-linecap="round" />
                 <line x1="-20" y1="20" x2="20" y2="-20" stroke="#7dd3fc" stroke-width="4" stroke-linecap="round" />
-                <circle cx="0" cy="0" r="9" fill="#ff7a1a" />
+                <circle cx="0" cy="0" r="9" fill="#00c2b5" />
               </g>
-              <text x="0" y="-48" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="10" font-weight="bold">TURBINA (POTENCIA)</text>
+              <text x="0" y="-48" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="10" font-weight="bold">TURBINA (POTENCIA)</text>
             </g>
 
             <text id="water-i-txt" x="270" y="96" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="13" font-weight="bold">Caudal I = 13.6 mA · P = 0.068 W</text>
@@ -133,8 +133,8 @@ function mountModElectricidad(): void {
 
             <!-- Fuente -->
             <g transform="translate(24, 92)">
-              <rect x="0" y="0" width="84" height="86" rx="10" fill="#0f172a" stroke="#ff7a1a" stroke-width="2.5" />
-              <text x="42" y="26" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="12" font-weight="bold">FUENTE</text>
+              <rect x="0" y="0" width="84" height="86" rx="10" fill="#0f172a" stroke="#00c2b5" stroke-width="2.5" />
+              <text x="42" y="26" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="12" font-weight="bold">FUENTE</text>
               <text id="el-svg-v" x="42" y="54" text-anchor="middle" fill="#fff" font-family="monospace" font-size="20" font-weight="bold">5.0 V</text>
               <text x="42" y="74" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">Presión (V)</text>
             </g>
@@ -813,18 +813,18 @@ function mountModDiagramas(): void {
       actionLabel: 'Alternar 5 V / 3.3 V',
       theorySvg: `
         <svg viewBox="0 0 260 110" aria-label="Símbolo Fuente DC y Tierra GND">
-          <line x1="25" y1="55" x2="66" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="25" y1="55" x2="66" y2="55" stroke="#151515" stroke-width="3"/>
           <line x1="66" y1="28" x2="66" y2="82" stroke="#dc2626" stroke-width="4"/>
-          <line x1="80" y1="41" x2="80" y2="69" stroke="#1c2b5a" stroke-width="4"/>
-          <line x1="80" y1="55" x2="122" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="80" y1="41" x2="80" y2="69" stroke="#151515" stroke-width="4"/>
+          <line x1="80" y1="55" x2="122" y2="55" stroke="#151515" stroke-width="3"/>
           <text x="54" y="24" fill="#dc2626" font-family="monospace" font-size="13" font-weight="bold">+</text>
-          <text x="86" y="24" fill="#1c2b5a" font-family="monospace" font-size="13" font-weight="bold">−</text>
-          <text x="72" y="99" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Fuente DC</text>
-          <line x1="195" y1="26" x2="195" y2="62" stroke="#1c2b5a" stroke-width="3"/>
-          <line x1="173" y1="62" x2="217" y2="62" stroke="#1c2b5a" stroke-width="3.5"/>
-          <line x1="181" y1="71" x2="209" y2="71" stroke="#1c2b5a" stroke-width="3.5"/>
-          <line x1="189" y1="80" x2="201" y2="80" stroke="#1c2b5a" stroke-width="3.5"/>
-          <text x="195" y="99" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Tierra (GND)</text>
+          <text x="86" y="24" fill="#151515" font-family="monospace" font-size="13" font-weight="bold">−</text>
+          <text x="72" y="99" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">Fuente DC</text>
+          <line x1="195" y1="26" x2="195" y2="62" stroke="#151515" stroke-width="3"/>
+          <line x1="173" y1="62" x2="217" y2="62" stroke="#151515" stroke-width="3.5"/>
+          <line x1="181" y1="71" x2="209" y2="71" stroke="#151515" stroke-width="3.5"/>
+          <line x1="189" y1="80" x2="201" y2="80" stroke="#151515" stroke-width="3.5"/>
+          <text x="195" y="99" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">Tierra (GND)</text>
         </svg>`,
       renderAnim: (alt) => {
         const v = alt ? '3.3 V' : '5.0 V';
@@ -862,12 +862,12 @@ function mountModDiagramas(): void {
       actionLabel: 'Alternar norma ANSI / IEC',
       theorySvg: `
         <svg viewBox="0 0 260 110" aria-label="Símbolo de resistencia ANSI e IEC">
-          <path d="M22 44 L44 44 L50 30 L60 58 L70 30 L80 58 L90 30 L100 44 L120 44" fill="none" stroke="#1c2b5a" stroke-width="3" stroke-linejoin="round"/>
-          <text x="71" y="84" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">ANSI (Zigzag)</text>
-          <line x1="144" y1="44" x2="164" y2="44" stroke="#1c2b5a" stroke-width="3"/>
-          <rect x="164" y="31" width="52" height="26" fill="none" stroke="#ff7a1a" stroke-width="3"/>
-          <line x1="216" y1="44" x2="238" y2="44" stroke="#1c2b5a" stroke-width="3"/>
-          <text x="190" y="84" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">IEC (Rectángulo)</text>
+          <path d="M22 44 L44 44 L50 30 L60 58 L70 30 L80 58 L90 30 L100 44 L120 44" fill="none" stroke="#151515" stroke-width="3" stroke-linejoin="round"/>
+          <text x="71" y="84" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">ANSI (Zigzag)</text>
+          <line x1="144" y1="44" x2="164" y2="44" stroke="#151515" stroke-width="3"/>
+          <rect x="164" y="31" width="52" height="26" fill="none" stroke="#00c2b5" stroke-width="3"/>
+          <line x1="216" y1="44" x2="238" y2="44" stroke="#151515" stroke-width="3"/>
+          <text x="190" y="84" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">IEC (Rectángulo)</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
@@ -876,10 +876,10 @@ function mountModDiagramas(): void {
             <line class="electron-flow" style="--flow-speed:0.7s" x1="28" y1="90" x2="128" y2="90" stroke="#fff" stroke-width="2.5"/>
             ${
               alt
-                ? `<rect x="128" y="66" width="124" height="48" rx="4" fill="#1e293b" stroke="#ff7a1a" stroke-width="3.5"/>
-                   <text x="190" y="95" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="14" font-weight="bold">IEC · 220 Ω</text>`
-                : `<path d="M128 90 L146 90 L158 62 L176 118 L194 62 L212 118 L230 62 L242 90 L252 90" fill="none" stroke="#ff7a1a" stroke-width="4" stroke-linejoin="round"/>
-                   <text x="190" y="144" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="14" font-weight="bold">ANSI · 220 Ω</text>`
+                ? `<rect x="128" y="66" width="124" height="48" rx="4" fill="#1e293b" stroke="#00c2b5" stroke-width="3.5"/>
+                   <text x="190" y="95" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">IEC · 220 Ω</text>`
+                : `<path d="M128 90 L146 90 L158 62 L176 118 L194 62 L212 118 L230 62 L242 90 L252 90" fill="none" stroke="#00c2b5" stroke-width="4" stroke-linejoin="round"/>
+                   <text x="190" y="144" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">ANSI · 220 Ω</text>`
             }
             <line x1="252" y1="90" x2="352" y2="90" stroke="#38bdf8" stroke-width="5"/>
             <line class="electron-flow" style="--flow-speed:1.5s" x1="252" y1="90" x2="352" y2="90" stroke="#7dd3fc" stroke-width="2.5"/>
@@ -901,11 +901,11 @@ function mountModDiagramas(): void {
       actionLabel: 'Invertir polaridad del diodo',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="40" y1="55" x2="106" y2="55" stroke="#1c2b5a" stroke-width="3"/>
-          <polygon points="106,33 106,77 148,55" fill="#1c2b5a"/>
+          <line x1="40" y1="55" x2="106" y2="55" stroke="#151515" stroke-width="3"/>
+          <polygon points="106,33 106,77 148,55" fill="#151515"/>
           <line x1="150" y1="31" x2="150" y2="79" stroke="#dc2626" stroke-width="5"/>
-          <line x1="150" y1="55" x2="218" y2="55" stroke="#1c2b5a" stroke-width="3"/>
-          <text x="64" y="42" fill="#1c2b5a" font-family="monospace" font-size="12" font-weight="bold">Ánodo (+)</text>
+          <line x1="150" y1="55" x2="218" y2="55" stroke="#151515" stroke-width="3"/>
+          <text x="64" y="42" fill="#151515" font-family="monospace" font-size="12" font-weight="bold">Ánodo (+)</text>
           <text x="160" y="42" fill="#dc2626" font-family="monospace" font-size="12" font-weight="bold">Cátodo (−)</text>
         </svg>`,
       renderAnim: (alt) => ({
@@ -943,14 +943,14 @@ function mountModDiagramas(): void {
       actionLabel: 'Invertir LED (+ / −)',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="40" y1="62" x2="104" y2="62" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="40" y1="62" x2="104" y2="62" stroke="#151515" stroke-width="3"/>
           <polygon points="104,40 104,84 144,62" fill="#ef4444"/>
-          <line x1="146" y1="38" x2="146" y2="86" stroke="#1c2b5a" stroke-width="4.5"/>
-          <line x1="146" y1="62" x2="215" y2="62" stroke="#1c2b5a" stroke-width="3"/>
-          <path d="M126 32 L144 14 M140 14 L144 14 L144 18" stroke="#ff7a1a" stroke-width="2.5" fill="none"/>
-          <path d="M142 36 L160 18 M156 18 L160 18 L160 22" stroke="#ff7a1a" stroke-width="2.5" fill="none"/>
-          <text x="64" y="49" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">Ánodo +</text>
-          <text x="158" y="49" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">Cátodo −</text>
+          <line x1="146" y1="38" x2="146" y2="86" stroke="#151515" stroke-width="4.5"/>
+          <line x1="146" y1="62" x2="215" y2="62" stroke="#151515" stroke-width="3"/>
+          <path d="M126 32 L144 14 M140 14 L144 14 L144 18" stroke="#00c2b5" stroke-width="2.5" fill="none"/>
+          <path d="M142 36 L160 18 M156 18 L160 18 L160 22" stroke="#00c2b5" stroke-width="2.5" fill="none"/>
+          <text x="64" y="49" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">Ánodo +</text>
+          <text x="158" y="49" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">Cátodo −</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
@@ -988,21 +988,21 @@ function mountModDiagramas(): void {
       actionLabel: 'Abrir / Cerrar interruptor',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="35" y1="60" x2="98" y2="60" stroke="#1c2b5a" stroke-width="3.5"/>
-          <circle cx="98" cy="60" r="5" fill="#1c2b5a"/>
-          <line x1="98" y1="60" x2="156" y2="32" stroke="#ff7a1a" stroke-width="4" stroke-linecap="round"/>
-          <circle cx="160" cy="60" r="5" fill="#1c2b5a"/>
-          <line x1="160" y1="60" x2="225" y2="60" stroke="#1c2b5a" stroke-width="3.5"/>
-          <text x="130" y="92" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Circuito abierto (0 A)</text>
+          <line x1="35" y1="60" x2="98" y2="60" stroke="#151515" stroke-width="3.5"/>
+          <circle cx="98" cy="60" r="5" fill="#151515"/>
+          <line x1="98" y1="60" x2="156" y2="32" stroke="#00c2b5" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="160" cy="60" r="5" fill="#151515"/>
+          <line x1="160" y1="60" x2="225" y2="60" stroke="#151515" stroke-width="3.5"/>
+          <text x="130" y="92" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">Circuito abierto (0 A)</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
           <svg viewBox="0 0 380 180">
             <rect x="44" y="42" width="292" height="96" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
             <rect class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:0.85s" x="44" y="42" width="292" height="96" rx="14" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
-            <rect x="148" y="24" width="84" height="36" fill="#141c33"/>
-            <circle cx="152" cy="42" r="6" fill="#ff7a1a"/>
-            <circle cx="228" cy="42" r="6" fill="#ff7a1a"/>
+            <rect x="148" y="24" width="84" height="36" fill="#181818"/>
+            <circle cx="152" cy="42" r="6" fill="#00c2b5"/>
+            <circle cx="228" cy="42" r="6" fill="#00c2b5"/>
             <line x1="152" y1="42" x2="228" y2="${alt ? '42' : '16'}" stroke="#fbbf24" stroke-width="5" stroke-linecap="round"/>
             <text x="190" y="98" text-anchor="middle" fill="${alt ? '#86efac' : '#cbd5e1'}" font-family="monospace" font-size="13" font-weight="bold">
               ${alt ? 'CERRADO → Paso libre de corriente' : 'ABIERTO → Camino cortado (0 mA)'}
@@ -1023,11 +1023,11 @@ function mountModDiagramas(): void {
       actionLabel: 'Mover cursor',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <path d="M40 62 L66 62 L74 44 L86 80 L98 44 L110 80 L122 44 L134 80 L144 62 L175 62" fill="none" stroke="#1c2b5a" stroke-width="3"/>
-          <line x1="108" y1="16" x2="108" y2="39" stroke="#ff7a1a" stroke-width="3.5"/>
-          <polygon points="101,35 115,35 108,46" fill="#ff7a1a"/>
-          <text x="195" y="42" fill="#ff7a1a" font-family="monospace" font-size="11" font-weight="bold">Cursor (A0)</text>
-          <text x="108" y="99" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">5V — [R] — GND</text>
+          <path d="M40 62 L66 62 L74 44 L86 80 L98 44 L110 80 L122 44 L134 80 L144 62 L175 62" fill="none" stroke="#151515" stroke-width="3"/>
+          <line x1="108" y1="16" x2="108" y2="39" stroke="#00c2b5" stroke-width="3.5"/>
+          <polygon points="101,35 115,35 108,46" fill="#00c2b5"/>
+          <text x="195" y="42" fill="#00c2b5" font-family="monospace" font-size="11" font-weight="bold">Cursor (A0)</text>
+          <text x="108" y="99" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">5V — [R] — GND</text>
         </svg>`,
       renderAnim: (_alt, pct) => {
         const vOut = (pct / 100) * 5;
@@ -1041,9 +1041,9 @@ function mountModDiagramas(): void {
               <line x1="285" y1="84" x2="306" y2="84" stroke="#ef4444" stroke-width="4"/>
               <text x="314" y="88" fill="#f87171" font-family="monospace" font-size="12" font-weight="bold">5.0 V</text>
               <g transform="translate(${xWiper}, 26)">
-                <line x1="0" y1="0" x2="0" y2="32" stroke="#ff7a1a" stroke-width="4"/>
-                <polygon points="-7,28 7,28 0,40" fill="#ff7a1a"/>
-                <text x="0" y="-6" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="12" font-weight="bold">${vOut.toFixed(2)} V</text>
+                <line x1="0" y1="0" x2="0" y2="32" stroke="#00c2b5" stroke-width="4"/>
+                <polygon points="-7,28 7,28 0,40" fill="#00c2b5"/>
+                <text x="0" y="-6" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="12" font-weight="bold">${vOut.toFixed(2)} V</text>
               </g>
               <text x="190" y="142" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="13" font-weight="bold">
                 analogRead(A0) = ${Math.round((pct / 100) * 1023)}
@@ -1063,17 +1063,17 @@ function mountModDiagramas(): void {
       actionLabel: 'Cargar / Descargar capacitor',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="40" y1="55" x2="112" y2="55" stroke="#1c2b5a" stroke-width="3"/>
-          <line x1="112" y1="26" x2="112" y2="84" stroke="#1c2b5a" stroke-width="4"/>
-          <line x1="128" y1="26" x2="128" y2="84" stroke="#1c2b5a" stroke-width="4"/>
-          <line x1="128" y1="55" x2="205" y2="55" stroke="#1c2b5a" stroke-width="3"/>
-          <text x="120" y="102" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Placas separadas (C)</text>
+          <line x1="40" y1="55" x2="112" y2="55" stroke="#151515" stroke-width="3"/>
+          <line x1="112" y1="26" x2="112" y2="84" stroke="#151515" stroke-width="4"/>
+          <line x1="128" y1="26" x2="128" y2="84" stroke="#151515" stroke-width="4"/>
+          <line x1="128" y1="55" x2="205" y2="55" stroke="#151515" stroke-width="3"/>
+          <text x="120" y="102" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">Placas separadas (C)</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
           <svg viewBox="0 0 380 180">
             <rect x="64" y="42" width="252" height="96" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
-            <rect x="166" y="18" width="48" height="48" fill="#141c33"/>
+            <rect x="166" y="18" width="48" height="48" fill="#181818"/>
             <line x1="176" y1="20" x2="176" y2="66" stroke="${alt ? '#22c55e' : '#94a3b8'}" stroke-width="5"/>
             <line x1="204" y1="20" x2="204" y2="66" stroke="${alt ? '#38bdf8' : '#94a3b8'}" stroke-width="5"/>
             ${alt ? '<text x="162" y="34" fill="#fca5a5" font-family="monospace" font-size="14" font-weight="bold">+</text><text x="210" y="34" fill="#7dd3fc" font-family="monospace" font-size="14" font-weight="bold">−</text>' : ''}
@@ -1098,15 +1098,15 @@ function mountModDiagramas(): void {
       actionLabel: 'Activar / Apagar Base (pin 9)',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <circle cx="130" cy="55" r="34" fill="none" stroke="#1c2b5a" stroke-width="2.5"/>
-          <line x1="60" y1="55" x2="118" y2="55" stroke="#ff7a1a" stroke-width="3.5"/>
-          <line x1="118" y1="35" x2="118" y2="75" stroke="#1c2b5a" stroke-width="5"/>
-          <line x1="118" y1="45" x2="152" y2="20" stroke="#1c2b5a" stroke-width="3"/>
-          <line x1="118" y1="65" x2="152" y2="90" stroke="#1c2b5a" stroke-width="3"/>
-          <polygon points="140,86 152,90 147,78" fill="#1c2b5a"/>
-          <text x="52" y="45" fill="#ff7a1a" font-family="monospace" font-size="11" font-weight="bold">B</text>
-          <text x="158" y="24" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">C</text>
-          <text x="158" y="96" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">E</text>
+          <circle cx="130" cy="55" r="34" fill="none" stroke="#151515" stroke-width="2.5"/>
+          <line x1="60" y1="55" x2="118" y2="55" stroke="#00c2b5" stroke-width="3.5"/>
+          <line x1="118" y1="35" x2="118" y2="75" stroke="#151515" stroke-width="5"/>
+          <line x1="118" y1="45" x2="152" y2="20" stroke="#151515" stroke-width="3"/>
+          <line x1="118" y1="65" x2="152" y2="90" stroke="#151515" stroke-width="3"/>
+          <polygon points="140,86 152,90 147,78" fill="#151515"/>
+          <text x="52" y="45" fill="#00c2b5" font-family="monospace" font-size="11" font-weight="bold">B</text>
+          <text x="158" y="24" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">C</text>
+          <text x="158" y="96" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">E</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
@@ -1114,14 +1114,14 @@ function mountModDiagramas(): void {
             <circle cx="190" cy="90" r="52" fill="#0f172a" stroke="#475569" stroke-width="2.5"/>
             <line x1="176" y1="58" x2="176" y2="122" stroke="#fff" stroke-width="6"/>
             <!-- Base -->
-            <line x1="42" y1="90" x2="176" y2="90" stroke="${alt ? '#ff7a1a' : '#475569'}" stroke-width="4"/>
-            <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:1.2s" x1="42" y1="90" x2="176" y2="90" stroke="#ffb066" stroke-width="2.5"/>
+            <line x1="42" y1="90" x2="176" y2="90" stroke="${alt ? '#00c2b5' : '#475569'}" stroke-width="4"/>
+            <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:1.2s" x1="42" y1="90" x2="176" y2="90" stroke="#5ef2e6" stroke-width="2.5"/>
             <!-- Colector -> Emisor -->
             <line x1="176" y1="74" x2="264" y2="26" stroke="${alt ? '#22c55e' : '#475569'}" stroke-width="6"/>
             <line x1="176" y1="106" x2="264" y2="154" stroke="${alt ? '#22c55e' : '#475569'}" stroke-width="6"/>
             <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:0.45s" x1="264" y1="26" x2="176" y2="74" stroke="#86efac" stroke-width="3"/>
             <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:0.45s" x1="176" y1="106" x2="264" y2="154" stroke="#86efac" stroke-width="3"/>
-            <text x="52" y="75" fill="#ffb066" font-family="monospace" font-size="11">Base: ${alt ? '5 V (2 mA)' : '0 V (0 mA)'}</text>
+            <text x="52" y="75" fill="#5ef2e6" font-family="monospace" font-size="11">Base: ${alt ? '5 V (2 mA)' : '0 V (0 mA)'}</text>
             <text x="276" y="34" fill="#86efac" font-family="monospace" font-size="11">Colector (Carga)</text>
             <text x="276" y="156" fill="#cbd5e1" font-family="monospace" font-size="11">Emisor (GND)</text>
           </svg>`,
@@ -1140,13 +1140,13 @@ function mountModDiagramas(): void {
       actionLabel: 'Cambiar cruce ↔ nodo unido',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="30" y1="55" x2="110" y2="55" stroke="#1c2b5a" stroke-width="3"/>
-          <line x1="70" y1="20" x2="70" y2="90" stroke="#1c2b5a" stroke-width="3"/>
-          <circle cx="70" cy="55" r="6" fill="#ff7a1a"/>
-          <text x="70" y="103" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="10.5">CON NODO (Unidos)</text>
-          <line x1="150" y1="55" x2="230" y2="55" stroke="#1c2b5a" stroke-width="3"/>
-          <path d="M190 20 L190 45 A10 10 0 0 1 190 65 L190 90" fill="none" stroke="#1c2b5a" stroke-width="3"/>
-          <text x="190" y="103" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="10.5">CRUCE (Sin unión)</text>
+          <line x1="30" y1="55" x2="110" y2="55" stroke="#151515" stroke-width="3"/>
+          <line x1="70" y1="20" x2="70" y2="90" stroke="#151515" stroke-width="3"/>
+          <circle cx="70" cy="55" r="6" fill="#00c2b5"/>
+          <text x="70" y="103" text-anchor="middle" fill="#151515" font-family="monospace" font-size="10.5">CON NODO (Unidos)</text>
+          <line x1="150" y1="55" x2="230" y2="55" stroke="#151515" stroke-width="3"/>
+          <path d="M190 20 L190 45 A10 10 0 0 1 190 65 L190 90" fill="none" stroke="#151515" stroke-width="3"/>
+          <text x="190" y="103" text-anchor="middle" fill="#151515" font-family="monospace" font-size="10.5">CRUCE (Sin unión)</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
@@ -1154,8 +1154,8 @@ function mountModDiagramas(): void {
             <line x1="56" y1="90" x2="324" y2="90" stroke="#38bdf8" stroke-width="5"/>
             <line class="electron-flow" style="--flow-speed:0.9s" x1="56" y1="90" x2="324" y2="90" stroke="#fff" stroke-width="2.5"/>
             <line x1="190" y1="22" x2="190" y2="158" stroke="${alt ? '#38bdf8' : '#64748b'}" stroke-width="5"/>
-            ${alt ? '<line class="electron-flow" style="--flow-speed:0.9s" x1="190" y1="22" x2="190" y2="158" stroke="#fff" stroke-width="2.5"/><circle cx="190" cy="90" r="10" fill="#ff7a1a" stroke="#fff" stroke-width="2"/>' : '<path d="M190 74 A16 16 0 0 1 190 106" fill="#141c33" stroke="#94a3b8" stroke-width="5"/>'}
-            <text x="190" y="172" text-anchor="middle" fill="${alt ? '#ffb066' : '#cbd5e1'}" font-family="monospace" font-size="12" font-weight="bold">
+            ${alt ? '<line class="electron-flow" style="--flow-speed:0.9s" x1="190" y1="22" x2="190" y2="158" stroke="#fff" stroke-width="2.5"/><circle cx="190" cy="90" r="10" fill="#00c2b5" stroke="#fff" stroke-width="2"/>' : '<path d="M190 74 A16 16 0 0 1 190 106" fill="#181818" stroke="#94a3b8" stroke-width="5"/>'}
+            <text x="190" y="172" text-anchor="middle" fill="${alt ? '#5ef2e6' : '#cbd5e1'}" font-family="monospace" font-size="12" font-weight="bold">
               ${alt ? 'NODO UNIDO: ambos cables comparten la señal' : 'CRUCE AISLADO: señales independientes'}
             </text>
           </svg>`,
@@ -1209,7 +1209,7 @@ function mountModDiagramas(): void {
 
           <!-- Fuente 5V -->
           <g class="diag-clickable" data-lab-part="fuente" transform="translate(56, 82)">
-            <rect x="0" y="0" width="64" height="68" rx="8" fill="#141c33" stroke="#ff7a1a" stroke-width="2"/>
+            <rect x="0" y="0" width="64" height="68" rx="8" fill="#181818" stroke="#00c2b5" stroke-width="2"/>
             <line x1="16" y1="24" x2="48" y2="24" stroke="#ef4444" stroke-width="4"/>
             <line x1="22" y1="36" x2="42" y2="36" stroke="#cbd5e1" stroke-width="3.5"/>
             <text x="32" y="57" text-anchor="middle" fill="#fff" font-family="monospace" font-size="11" font-weight="bold">5 V DC</text>
@@ -1217,30 +1217,30 @@ function mountModDiagramas(): void {
 
           <!-- Interruptor S1 -->
           <g class="diag-clickable" data-lab-part="s1" transform="translate(178, 18)">
-            <rect x="0" y="6" width="88" height="38" rx="6" fill="#141c33"/>
-            <circle cx="16" cy="24" r="5" fill="#ff7a1a"/>
-            <circle cx="72" cy="24" r="5" fill="#ff7a1a"/>
+            <rect x="0" y="6" width="88" height="38" rx="6" fill="#181818"/>
+            <circle cx="16" cy="24" r="5" fill="#00c2b5"/>
+            <circle cx="72" cy="24" r="5" fill="#00c2b5"/>
             <line id="diag-lab-blade" x1="16" y1="24" x2="72" y2="24" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
-            <text x="44" y="56" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="11" font-weight="bold">S1</text>
+            <text x="44" y="56" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="11" font-weight="bold">S1</text>
           </g>
 
           <!-- Resistencia R1 -->
           <g class="diag-clickable" data-lab-part="r1" transform="translate(332, 16)">
-            <rect x="0" y="8" width="106" height="36" rx="6" fill="#141c33"/>
+            <rect x="0" y="8" width="106" height="36" rx="6" fill="#181818"/>
             <path d="M4 26 L18 26 L25 14 L35 38 L45 14 L55 38 L65 14 L75 38 L83 26 L102 26" fill="none" stroke="#dec8a0" stroke-width="3.5"/>
             <text x="53" y="58" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="11" font-weight="bold">R1 · 220 Ω</text>
           </g>
 
           <!-- Diodo D1 -->
           <g class="diag-clickable" data-lab-part="d1" transform="translate(556, 82)">
-            <rect x="-12" y="-4" width="88" height="72" rx="8" fill="#141c33"/>
+            <rect x="-12" y="-4" width="88" height="72" rx="8" fill="#181818"/>
             <g id="diag-lab-diode-gfx"></g>
             <text x="32" y="60" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="11" font-weight="bold">D1 (1N4007)</text>
           </g>
 
           <!-- LED1 en rama inferior -->
           <g class="diag-clickable" data-lab-part="led1" transform="translate(320, 160)">
-            <rect x="0" y="0" width="90" height="54" rx="8" fill="#141c33"/>
+            <rect x="0" y="0" width="90" height="54" rx="8" fill="#181818"/>
             <circle id="diag-lab-led-glow" cx="45" cy="27" r="24" fill="#ef4444" opacity="0.45"/>
             <polygon points="24,14 24,40 50,27" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>
             <line x1="52" y1="14" x2="52" y2="40" stroke="#fff" stroke-width="3.5"/>
@@ -1408,8 +1408,8 @@ function mountModSerieParalelo(): void {
             <rect x="45" y="42" width="370" height="122" rx="14" fill="none" stroke="#334155" stroke-width="8" />
             <rect id="sp-ser-flow" class="electron-flow" x="45" y="42" width="370" height="122" rx="14"
               fill="none" stroke="#38bdf8" stroke-width="4" />
-            <rect x="18" y="78" width="54" height="48" rx="8" fill="#0f172a" stroke="#ff7a1a" stroke-width="2" />
-            <text x="45" y="107" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="14" font-weight="bold">5 V</text>
+            <rect x="18" y="78" width="54" height="48" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2" />
+            <text x="45" y="107" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">5 V</text>
 
             <g transform="translate(155, 22)">
               <circle id="sp-ser-led1" cx="22" cy="20" r="18" fill="#ef4444" stroke="#fff" stroke-width="2" />
@@ -1440,8 +1440,8 @@ function mountModSerieParalelo(): void {
             <path id="sp-par-flow2" class="electron-flow" d="M 240 36 L 395 36 Q 409 36 409 50 L 409 150 Q 409 164 395 164 L 240 164"
               fill="none" stroke="#34d399" stroke-width="3.5" />
 
-            <rect x="18" y="78" width="54" height="48" rx="8" fill="#0f172a" stroke="#ff7a1a" stroke-width="2" />
-            <text x="45" y="107" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="14" font-weight="bold">5 V</text>
+            <rect x="18" y="78" width="54" height="48" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2" />
+            <text x="45" y="107" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">5 V</text>
 
             <g transform="translate(218, 78)">
               <circle id="sp-par-led1" cx="22" cy="20" r="18" fill="#22c55e" stroke="#fff" stroke-width="2" />
@@ -1557,7 +1557,7 @@ function mountModProtoboard(): void {
     holes.push({ id: `bm${c}`, track: 'rail_bot_minus', cx: x, cy: 356, railKind: 'minus' });
   }
 
-  const SIGNAL_PALETTE = ['#16a34a', '#ff7a1a', '#9333ea', '#0d9488', '#db2777', '#ca8a04'];
+  const SIGNAL_PALETTE = ['#16a34a', '#00c2b5', '#9333ea', '#0d9488', '#db2777', '#ca8a04'];
   const wires: Array<{ from: string; to: string }> = [];
   let pendingStart: string | null = null;
 
@@ -1573,13 +1573,13 @@ function mountModProtoboard(): void {
   const rowLettersSvg = [
     ...['a', 'b', 'c', 'd', 'e'].map((ch, r) => {
       const y = 96 + r * 20 + 3.5;
-      return `<text x="50" y="${y}" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>
-              <text x="568" y="${y}" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>`;
+      return `<text x="50" y="${y}" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>
+              <text x="568" y="${y}" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>`;
     }),
     ...['f', 'g', 'h', 'i', 'j'].map((ch, r) => {
       const y = 224 + r * 20 + 3.5;
-      return `<text x="50" y="${y}" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>
-              <text x="568" y="${y}" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>`;
+      return `<text x="50" y="${y}" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>
+              <text x="568" y="${y}" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">${ch}</text>`;
     }),
   ].join('');
 
@@ -1621,7 +1621,7 @@ function mountModProtoboard(): void {
 
           <!-- Capa de iluminado de pistas conectadas + Rayos X -->
           <g id="bb-tracks-overlay"></g>
-          <rect id="bb-xray-bar" x="0" y="0" width="0" height="0" rx="6" fill="#ff7a1a" opacity="0.28" pointer-events="none" />
+          <rect id="bb-xray-bar" x="0" y="0" width="0" height="0" rx="6" fill="#00c2b5" opacity="0.28" pointer-events="none" />
 
           <!-- Orificios -->
           <g id="bb-holes-layer">
@@ -1736,7 +1736,7 @@ function mountModProtoboard(): void {
 
     root.querySelectorAll<SVGCircleElement>('[data-hole-id]').forEach((el) => {
       const isPending = el.dataset.holeId === pendingStart;
-      el.setAttribute('stroke', isPending ? '#ff7a1a' : 'none');
+      el.setAttribute('stroke', isPending ? '#00c2b5' : 'none');
       el.setAttribute('stroke-width', isPending ? '2.5' : '0');
     });
   };
@@ -1816,7 +1816,7 @@ function mountModPinouts(): void {
     dig: '#2563eb',
     ana: '#16a34a',
     com: '#9333ea',
-    ctl: '#ff7a1a',
+    ctl: '#00c2b5',
   };
 
   root.innerHTML = `
@@ -1907,7 +1907,7 @@ function mountModPinouts(): void {
         <svg viewBox="0 0 ${svgW} ${svgH}" aria-label="Pinout real Arduino Uno R3">
           <!-- Contorno PCB real con muescas derechas -->
           <polygon points="110,50 572,50 590,68 590,122 575,138 575,204 590,220 590,290 110,290"
-            fill="#00828a" stroke="#ffb066" stroke-width="2" />
+            fill="#00828a" stroke="#5ef2e6" stroke-width="2" />
           <!-- Puerto USB-B izquierdo -->
           <rect x="74" y="90" width="68" height="54" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
           <text x="108" y="121" text-anchor="middle" fill="#1e293b" font-family="monospace" font-size="10" font-weight="bold">USB-B</text>
@@ -1926,7 +1926,7 @@ function mountModPinouts(): void {
           <text x="426" y="205" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="bold">ATmega328P-PU</text>
           <!-- Texto UNO -->
           <text x="420" y="126" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="22" font-weight="bold">ARDUINO UNO R3</text>
-          <text x="420" y="146" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="11">LÓGICA 5 V · 16 MHz</text>
+          <text x="420" y="146" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="11">LÓGICA 5 V · 16 MHz</text>
           <!-- Cabeceras hembra -->
           <rect x="220" y="54" width="330" height="22" rx="3" fill="#0f172a" opacity="0.7" />
           <rect x="285" y="264" width="265" height="22" rx="3" fill="#0f172a" opacity="0.7" />
@@ -1960,7 +1960,7 @@ function mountModPinouts(): void {
       host.innerHTML = `
         <svg viewBox="0 0 ${svgW} ${svgH}" aria-label="Pinout real ESP32 DevKit V1">
           <!-- PCB oscuro DevKit V1 -->
-          <rect x="120" y="75" width="460" height="190" rx="10" fill="#181c24" stroke="#ffb066" stroke-width="2" />
+          <rect x="120" y="75" width="460" height="190" rx="10" fill="#181c24" stroke="#5ef2e6" stroke-width="2" />
           <!-- Micro-USB izquierdo -->
           <rect x="104" y="144" width="38" height="52" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
           <!-- Botones EN y BOOT -->
@@ -2050,7 +2050,7 @@ function mountModPullUp(): void {
             <line x1="36" y1="132" x2="404" y2="132" stroke="#334155" stroke-dasharray="4 4" />
             <text x="8" y="36" fill="#86efac" font-family="monospace" font-size="11">5V</text>
             <text x="8" y="136" fill="#94a3b8" font-family="monospace" font-size="11">0V</text>
-            <polyline id="pu-scope-line" fill="none" stroke="#ff7a1a" stroke-width="3.5" stroke-linejoin="round" points="" />
+            <polyline id="pu-scope-line" fill="none" stroke="#00c2b5" stroke-width="3.5" stroke-linejoin="round" points="" />
           </svg>
         </div>
         <div class="kpi-trio">
@@ -2074,14 +2074,14 @@ function mountModPullUp(): void {
         <!-- Arduino MCU -->
         <rect x="20" y="55" width="115" height="100" rx="10" fill="#00828a" />
         <text x="77" y="98" text-anchor="middle" fill="#fff" font-family="monospace" font-weight="bold">PIN D2</text>
-        <text x="77" y="122" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="11">${mode === 'pullup' ? 'INPUT_PULLUP' : 'INPUT'}</text>
+        <text x="77" y="122" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="11">${mode === 'pullup' ? 'INPUT_PULLUP' : 'INPUT'}</text>
 
         <!-- Línea hacia botón -->
         <line x1="135" y1="105" x2="290" y2="105" stroke="#38bdf8" stroke-width="5" />
         <!-- Pulsador -->
         <circle cx="290" cy="105" r="5" fill="#fff" />
         <circle cx="355" cy="105" r="5" fill="#fff" />
-        <line x1="290" y1="105" x2="355" y2="${swClosed ? '105' : '78'}" stroke="#ff7a1a" stroke-width="5" stroke-linecap="round" />
+        <line x1="290" y1="105" x2="355" y2="${swClosed ? '105' : '78'}" stroke="#00c2b5" stroke-width="5" stroke-linecap="round" />
 
         ${
           isFloat
@@ -2237,8 +2237,8 @@ function mountModPwm(): void {
           <text x="16" y="34" fill="#94a3b8" font-family="monospace" font-size="11">5 V</text>
           <text x="16" y="130" fill="#94a3b8" font-family="monospace" font-size="11">0 V</text>
           <path id="pwm-wave-path" d="" fill="none" stroke="#22c55e" stroke-width="4" stroke-linejoin="round" />
-          <line id="pwm-avg-line" x1="48" y1="82" x2="440" y2="82" stroke="#ff7a1a" stroke-width="2.5" stroke-dasharray="6 4" />
-          <text id="pwm-avg-txt" x="48" y="156" fill="#ffb066" font-family="monospace" font-size="12" font-weight="bold">Voltaje promedio percibido: 2.50 V</text>
+          <line id="pwm-avg-line" x1="48" y1="82" x2="440" y2="82" stroke="#00c2b5" stroke-width="2.5" stroke-dasharray="6 4" />
+          <text id="pwm-avg-txt" x="48" y="156" fill="#5ef2e6" font-family="monospace" font-size="12" font-weight="bold">Voltaje promedio percibido: 2.50 V</text>
 
           <!-- LED y Servo en vivo -->
           <g transform="translate(495, 52)">
@@ -2247,7 +2247,7 @@ function mountModPwm(): void {
             <text x="0" y="32" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="10">LED PWM</text>
           </g>
           <g transform="translate(555, 118)">
-            <circle cx="0" cy="0" r="28" fill="#1d4ed8" stroke="#ffb066" stroke-width="2" />
+            <circle cx="0" cy="0" r="28" fill="#1d4ed8" stroke="#5ef2e6" stroke-width="2" />
             <g id="pwm-servo-arm" transform="rotate(0)">
               <rect x="-4" y="-34" width="8" height="38" rx="4" fill="#f8fafc" />
             </g>
@@ -2284,7 +2284,7 @@ function mountModPwm(): void {
             <rect x="20" y="34" width="76" height="46" rx="8" fill="#0f172a" stroke="#ef4444" stroke-width="2" />
             <text x="58" y="61" text-anchor="middle" fill="#fca5a5" font-family="monospace" font-weight="bold">5.0 V</text>
             <line x1="96" y1="57" x2="310" y2="57" stroke="#94a3b8" stroke-width="5" />
-            <rect x="148" y="39" width="106" height="36" rx="10" fill="#991b1b" stroke="#ff7a1a" stroke-width="2" />
+            <rect x="148" y="39" width="106" height="36" rx="10" fill="#991b1b" stroke="#00c2b5" stroke-width="2" />
             <text x="201" y="61" text-anchor="middle" fill="#fff" font-family="monospace" font-size="11" font-weight="bold">CALOR 🔥</text>
             <circle id="pwm-heat-glow" cx="201" cy="57" r="44" fill="#ef4444" opacity="0.25" />
             <rect x="310" y="34" width="90" height="46" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="2" />
@@ -2520,16 +2520,16 @@ while (digitalRead(2) == LOW) {
         <div class="svg-stage is-light">
           <svg viewBox="0 0 420 270" aria-label="Diagrama de flujo setup y loop">
             <g id="fl-boot" class="flow-node">
-              <rect x="115" y="16" width="190" height="44" rx="22" fill="#1c2b5a" />
-              <text x="210" y="43" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="13" font-weight="bold">1. Encendido / Reset</text>
+              <rect x="115" y="16" width="190" height="44" rx="22" fill="#151515" />
+              <text x="210" y="43" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="13" font-weight="bold">1. Encendido / Reset</text>
             </g>
-            <line x1="210" y1="60" x2="210" y2="92" stroke="#1c2b5a" stroke-width="3" />
+            <line x1="210" y1="60" x2="210" y2="92" stroke="#151515" stroke-width="3" />
             <g id="fl-setup" class="flow-node">
               <rect x="85" y="92" width="250" height="54" rx="10" fill="#2563eb" />
               <text x="210" y="116" text-anchor="middle" fill="#fff" font-family="monospace" font-size="14" font-weight="bold">2. setup() — 1 sola vez</text>
               <text x="210" y="135" text-anchor="middle" fill="#dbeafe" font-family="monospace" font-size="11">Configura pines y Serial</text>
             </g>
-            <line x1="210" y1="146" x2="210" y2="180" stroke="#1c2b5a" stroke-width="3" />
+            <line x1="210" y1="146" x2="210" y2="180" stroke="#151515" stroke-width="3" />
             <g id="fl-loop" class="flow-node">
               <rect x="85" y="180" width="250" height="58" rx="10" fill="#16a34a" />
               <text x="210" y="205" text-anchor="middle" fill="#fff" font-family="monospace" font-size="14" font-weight="bold">3. loop() — Bucle infinito</text>
@@ -2636,6 +2636,81 @@ mountModPullUp();
 mountModPwm();
 mountModCodigo();
 
+// Glassy Navbar V10 pill + Glassy Sidebar V10 rail + Scroll reveals + Preloader
+const clasesNav = document.getElementById('clases-main-nav');
+const clasesNavPill = document.getElementById('clases-nav-pill') as HTMLElement | null;
+if (clasesNav && clasesNavPill) {
+  const links = Array.from(clasesNav.querySelectorAll<HTMLAnchorElement>('a[data-nav-section]'));
+  let activeLink: HTMLAnchorElement | null = links[0] ?? null;
+  const movePill = (el: HTMLElement | null) => {
+    if (!el || clasesNav.offsetParent === null) {
+      clasesNavPill.classList.remove('is-visible');
+      return;
+    }
+    const rN = clasesNav.getBoundingClientRect();
+    const rE = el.getBoundingClientRect();
+    clasesNavPill.style.width = `${rE.width}px`;
+    clasesNavPill.style.transform = `translate3d(${rE.left - rN.left}px, 0, 0)`;
+    clasesNavPill.classList.add('is-visible');
+  };
+  links.forEach((l) => {
+    l.addEventListener('mouseenter', () => movePill(l));
+    l.addEventListener('focus', () => movePill(l));
+  });
+  clasesNav.addEventListener('mouseleave', () => movePill(activeLink));
+  window.addEventListener('resize', () => movePill(activeLink));
+
+  const rail = document.getElementById('clases-glass-rail');
+  const railToggle = document.getElementById('clases-rail-toggle');
+  const railItems = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-rail-section]'));
+  railToggle?.addEventListener('click', () => {
+    if (!rail) return;
+    const expanded = rail.classList.toggle('is-expanded');
+    railToggle.setAttribute('aria-expanded', String(expanded));
+  });
+
+  if ('IntersectionObserver' in window) {
+    const modObs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            const id = e.target.id;
+            const match = links.find((a) => a.dataset.navSection === id);
+            if (match) {
+              activeLink = match;
+              links.forEach((a) => a.classList.toggle('is-nav-active', a === match));
+              movePill(activeLink);
+            }
+            railItems.forEach((r) => r.classList.toggle('is-active', r.dataset.railSection === id));
+          }
+        }
+      },
+      { rootMargin: '-32% 0px -55% 0px', threshold: 0.04 }
+    );
+    document.querySelectorAll<HTMLElement>('section.class-module[id]').forEach((sec) => modObs.observe(sec));
+  }
+  requestAnimationFrame(() => movePill(activeLink));
+}
+
+const revealCards = document.querySelectorAll<HTMLElement>('.concept-def-card, .viz-card, .prog-block-wrap, .diag-lab-wrap');
+revealCards.forEach((el) => el.classList.add('reveal-up'));
+if ('IntersectionObserver' in window) {
+  const ro = new IntersectionObserver(
+    (entries, observer) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          e.target.classList.add('is-in');
+          observer.unobserve(e.target);
+        }
+      }
+    },
+    { threshold: 0.06, rootMargin: '0px 0px -24px 0px' }
+  );
+  revealCards.forEach((el) => ro.observe(el));
+} else {
+  revealCards.forEach((el) => el.classList.add('is-in'));
+}
+
 const clasesMobBtn = document.getElementById('clases-mob-toggle') as HTMLButtonElement | null;
 const clasesMobDrawer = document.getElementById('clases-mob-drawer') as HTMLElement | null;
 if (clasesMobBtn && clasesMobDrawer) {
@@ -2653,3 +2728,13 @@ if (clasesMobBtn && clasesMobDrawer) {
     if (e.key === 'Escape' && !clasesMobDrawer.hidden) closeDrawer();
   });
 }
+
+const hideClasesPreloader = () => {
+  const pre = document.getElementById('app-preloader');
+  if (pre && !pre.classList.contains('is-done')) {
+    pre.classList.add('is-done');
+    setTimeout(() => pre.remove(), 520);
+  }
+};
+requestAnimationFrame(() => requestAnimationFrame(hideClasesPreloader));
+window.setTimeout(hideClasesPreloader, 1600);

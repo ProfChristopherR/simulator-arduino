@@ -1,75 +1,78 @@
 :root {
-  /* Regla 60-30-10: 60% Cream (#F7F2EA), 30% Navy (#1C2B5A), 10% Orange (#FF7A1A) */
-  --paper: #f7f2ea;
-  --paper-hi: #fcf9f4;
-  --paper-2: #efe8dc;
-  --paper-lo: #e5dccd;
-  --card: #fdfbf7;
-  --border: rgba(28, 43, 90, 0.14);
-  --border-strong: rgba(28, 43, 90, 0.25);
-  --rule-soft: rgba(28, 43, 90, 0.08);
+  /* Regla 60-30-10 · Edición Marfil: 60% Marfil (#EEE3CC), 30% Negro Piano (#151515), 10% Turquesa (#00C2B5) */
+  --paper: #eee3cc;
+  --paper-hi: #f7f1e4;
+  --paper-2: #e5d8bd;
+  --paper-lo: #d9caa9;
+  --card: #faf6ec;
+  --border: rgba(21, 21, 21, 0.13);
+  --border-strong: rgba(21, 21, 21, 0.26);
+  --rule-soft: rgba(21, 21, 21, 0.08);
 
-  /* Tinta y contraste */
-  --ink: #161d31;
-  --ink-2: rgba(22, 29, 49, 0.8);
-  --ink-3: rgba(22, 29, 49, 0.58);
+  /* Tinta y contraste (Negro Piano 30%) */
+  --ink: #151515;
+  --ink-2: rgba(21, 21, 21, 0.78);
+  --ink-3: rgba(21, 21, 21, 0.56);
 
-  /* Secundario 30%: Navy */
-  --navy: #1c2b5a;
-  --navy-2: #293d7a;
-  --navy-soft: rgba(28, 43, 90, 0.08);
+  /* Secundario estructural 30%: Negro Piano */
+  --navy: #151515;
+  --navy-2: #282828;
+  --navy-soft: rgba(21, 21, 21, 0.07);
 
-  /* Acento 10%: Orange */
-  --accent: #ff7a1a;
-  --accent-hover: #e56509;
-  --accent-ink: #b84a00;
-  --accent-soft: rgba(255, 122, 26, 0.13);
+  /* Acento 10%: Turquesa Surf (#00C2B5) + variante AA sobre Marfil */
+  --accent: #00c2b5;
+  --accent-hover: #00a89d;
+  --accent-ink: #00786f;
+  --accent-soft: rgba(0, 194, 181, 0.14);
 
-  /* Alias compatibles para acento */
-  --gold: #ff7a1a;
-  --gold-bright: #ffb066;
-  --gold-ink: #b84a00;
-  --gold-soft: rgba(255, 122, 26, 0.13);
-
-  /* Acento técnico secundario */
-  --teal: #1c2b5a;
-  --teal-soft: rgba(28, 43, 90, 0.1);
+  /* Alias compatibles */
+  --gold: #00c2b5;
+  --gold-bright: #5ef2e6;
+  --gold-ink: #00786f;
+  --gold-soft: rgba(0, 194, 181, 0.14);
+  --teal: #00c2b5;
+  --teal-soft: rgba(0, 194, 181, 0.14);
 
   /* Estados de simulación */
-  --ok: #2c7a4b;
-  --ok-soft: rgba(44, 122, 75, 0.12);
+  --ok: #15803d;
+  --ok-soft: rgba(21, 128, 61, 0.12);
   --warn: #b45309;
   --warn-soft: rgba(180, 83, 9, 0.12);
-  --bad: #b24a2c;
-  --bad-soft: rgba(178, 74, 44, 0.12);
+  --bad: #b91c1c;
+  --bad-soft: rgba(185, 28, 28, 0.12);
 
   /* Código de color de pines eléctricos */
   --k-pwr: #c8402f;
-  --k-gnd: #2b2823;
-  --k-dig: #2f6fb5;
-  --k-ana: #2e8b57;
-  --k-com: #7a4fb3;
-  --k-ctl: #ff7a1a;
-  --k-nc: #9a958a;
+  --k-gnd: #151515;
+  --k-dig: #2563eb;
+  --k-ana: #008a7e;
+  --k-com: #7c3aed;
+  --k-ctl: #00c2b5;
+  --k-nc: #8a8376;
 
-  /* Paneles translúcidos sobre 3D */
-  --frost-bg: rgba(247, 242, 234, 0.90);
-  --frost-blur: blur(22px) saturate(1.25);
-  --frost-shadow: 0 0 0 1px rgba(28, 43, 90, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.75) inset,
-    0 24px 46px -26px rgba(28, 43, 90, 0.35),
-    0 4px 12px -4px rgba(28, 43, 90, 0.12);
+  /* Vidrio esmerilado y elevación (Glassy V10) */
+  --frost-bg: rgba(247, 241, 228, 0.84);
+  --frost-dark: rgba(21, 21, 21, 0.86);
+  --frost-blur: blur(22px) saturate(1.35);
+  --frost-shadow: 0 0 0 1px rgba(21, 21, 21, 0.09),
+    0 1px 0 rgba(255, 255, 255, 0.74) inset,
+    0 24px 48px -24px rgba(21, 21, 21, 0.34),
+    0 4px 12px -4px rgba(21, 21, 21, 0.12);
 
-  /* Tipografía */
-  --serif: "Crimson Pro", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Curvas de animación */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Tipografía editorial + técnica */
+  --serif: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
 
-  --header-h: 54px;
+  --header-h: 56px;
   --gutter: clamp(16px, 3.4vw, 48px);
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 14px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
 }
 
 *,
@@ -80,7 +83,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--header-h) + 16px);
+  scroll-padding-top: calc(var(--header-h) + 20px);
 }
 
 body {
@@ -110,17 +113,44 @@ button {
 }
 
 a {
-  color: var(--navy-2);
+  color: var(--navy);
 }
 
 :focus-visible {
-  outline: 2px solid var(--navy);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Énfasis editorial estilo Turquesa Surf */
+.accent-word {
+  color: var(--accent-ink);
+}
+
+.accent-word-bright {
+  color: var(--accent);
+}
+
+/* Revelado sutil GPU al entrar en pantalla */
+.reveal-up {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition: opacity 520ms var(--ease-out), transform 520ms var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal-up.is-in {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .reveal-up {
+    opacity: 1;
+    transform: none;
   }
 
   *,
@@ -136,7 +166,7 @@ a {
   left: -9999px;
   top: 8px;
   background: var(--navy);
-  color: #fff;
+  color: var(--paper);
   padding: 8px 14px;
   border-radius: var(--radius-sm);
   z-index: 200;
