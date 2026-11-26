@@ -75,12 +75,16 @@ export interface BuiltBoard3D {
   tickAnimation?: (dt: number) => void;
 }
 
-// Componentes genéricos estilo Tinkercad (el valor/color se configura en el inspector)
+// Componentes genéricos estilo Tinkercad + catálogo ampliado Arduino
 export type ComponentType =
   | 'led'
   | 'rgb-led'
   | 'resistor'
+  | 'capacitor'
+  | 'diode'
+  | 'transistor-npn'
   | 'button'
+  | 'slide-switch'
   | 'potentiometer'
   | 'buzzer'
   | 'ldr'
@@ -88,11 +92,26 @@ export type ComponentType =
   | 'ultrasonic'
   | 'servo'
   | 'lcd-i2c'
+  | 'oled-i2c'
+  | 'seven-seg'
+  | 'led-matrix'
   | 'level-shifter'
   | 'bme280'
   | 'co2-sensor'
   | 'optical-encoder'
-  | 'rf-pair';
+  | 'rf-pair'
+  | 'pir-sensor'
+  | 'soil-moisture'
+  | 'joystick'
+  | 'ir-receiver'
+  | 'ir-remote'
+  | 'rfid-rc522'
+  | 'gas-mq2'
+  | 'sound-sensor'
+  | 'dc-motor'
+  | 'stepper-28byj'
+  | 'uln2003-driver'
+  | 'relay-5v';
 
 export interface ComponentPinDef {
   id: string;

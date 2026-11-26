@@ -19,7 +19,7 @@
   <body>
     <a class="skip-link" href="#mesa-trabajo">Saltar a la mesa de trabajo</a>
 
-    <header class="site-header" id="top">
+    <header class="site-header is-hero-overlay" id="top">
       <div class="header-inner">
         <a class="brand" href="#hero" aria-label="Inicio Laboratorio Geogo Liceo San Nicolás">
           <img
@@ -44,18 +44,31 @@
         </nav>
 
         <div class="header-actions">
-          <button
-            type="button"
-            class="lofi-pill"
-            id="header-lofi-btn"
-            aria-pressed="false"
-            title="Activar música ambiental Lofi de estudio"
-          >
-            <span class="icon-slot" data-icon="music"></span>
-            <span>Lofi</span>
-            <span class="lofi-eq" aria-hidden="true"><i></i><i></i><i></i></span>
-          </button>
-          <span class="version-pill" title="Versión del simulador">v0.1.0</span>
+          <div class="lofi-widget" id="header-lofi-widget">
+            <button
+              type="button"
+              class="lofi-pill"
+              id="header-lofi-btn"
+              aria-pressed="false"
+              title="Activar música ambiental Lofi aleatoria"
+            >
+              <span class="icon-slot" data-icon="music"></span>
+              <span>Lofi</span>
+              <span class="lofi-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+            </button>
+            <div class="lofi-mini-controls" id="header-lofi-controls" hidden>
+              <button type="button" class="lofi-mini-btn" id="header-lofi-prev" title="Pista anterior" aria-label="Pista anterior">
+                <span class="icon-slot" data-icon="skip-back"></span>
+              </button>
+              <button type="button" class="lofi-mini-btn" id="header-lofi-pause" title="Pausar / Reanudar" aria-label="Pausar o reanudar">
+                <span class="icon-slot" data-icon="pause"></span>
+              </button>
+              <button type="button" class="lofi-mini-btn" id="header-lofi-next" title="Siguiente pista" aria-label="Siguiente pista">
+                <span class="icon-slot" data-icon="skip-forward"></span>
+              </button>
+            </div>
+          </div>
+          <span class="version-pill" title="Versión del simulador">v0.2.0</span>
         </div>
       </div>
     </header>
@@ -279,11 +292,24 @@
                 <span class="icon-slot" data-icon="volume-2"></span>
                 <span>Sonido</span>
               </button>
-              <button type="button" class="wb-btn" id="wb-lofi-btn" aria-pressed="false" title="Música ambiental Lofi">
-                <span class="icon-slot" data-icon="music"></span>
-                <span>Lofi</span>
-                <span class="lofi-eq" aria-hidden="true"><i></i><i></i><i></i></span>
-              </button>
+              <div class="lofi-widget" id="wb-lofi-widget">
+                <button type="button" class="wb-btn" id="wb-lofi-btn" aria-pressed="false" title="Música ambiental Lofi aleatoria">
+                  <span class="icon-slot" data-icon="music"></span>
+                  <span>Lofi</span>
+                  <span class="lofi-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+                </button>
+                <div class="lofi-mini-controls" id="wb-lofi-controls" hidden>
+                  <button type="button" class="lofi-mini-btn" id="wb-lofi-prev" title="Pista anterior" aria-label="Pista anterior">
+                    <span class="icon-slot" data-icon="skip-back"></span>
+                  </button>
+                  <button type="button" class="lofi-mini-btn" id="wb-lofi-pause" title="Pausar / Reanudar" aria-label="Pausar o reanudar">
+                    <span class="icon-slot" data-icon="pause"></span>
+                  </button>
+                  <button type="button" class="lofi-mini-btn" id="wb-lofi-next" title="Siguiente pista" aria-label="Siguiente pista">
+                    <span class="icon-slot" data-icon="skip-forward"></span>
+                  </button>
+                </div>
+              </div>
               <button type="button" class="wb-btn" id="wb-fullscreen-btn" aria-pressed="false" title="Pantalla completa">
                 <span class="icon-slot" data-icon="maximize-2"></span>
                 <span>Pantalla completa</span>
@@ -298,6 +324,15 @@
               <div class="wb-sidebar-head">
                 <strong>Componentes</strong>
                 <span class="wb-hint-chip">Clic para añadir</span>
+              </div>
+              <div class="wb-palette-search-wrap">
+                <span class="icon-slot" data-icon="search"></span>
+                <input
+                  type="search"
+                  id="wb-palette-search"
+                  placeholder="Buscar sensor, motor, LED..."
+                  aria-label="Buscar componente en el catálogo"
+                />
               </div>
               <div class="wb-palette" id="wb-palette"></div>
             </aside>
@@ -326,7 +361,10 @@
               <!-- Inspector flotante estilo Tinkercad para el componente seleccionado -->
               <div class="wb-comp-inspector" id="wb-comp-inspector" hidden></div>
 
-              <!-- Tarjeta flotante "Pruébalo" en vivo (botones, potenciómetro, sensores) -->
+              <!-- ViewCube CAD esquina inferior izquierda -->
+              <div class="wb-viewcube-host" id="wb-viewcube-host" aria-label="Cubo de orientación de cámara 3D"></div>
+
+              <!-- Tarjeta flotante "Pruébalo" en vivo (esquina inferior derecha) -->
               <div class="wb-tryit-card" id="wb-tryit-card" hidden aria-label="Controles rápidos de prueba en vivo"></div>
 
               <!-- Tooltip oscuro contextual junto al cursor -->
@@ -338,25 +376,35 @@
               <!-- Diagnostics Banner -->
               <div class="wb-alert-banner" id="wb-alert-banner" hidden></div>
 
-              <!-- Selected Pin / Breadboard Track Hint -->
-              <div class="wb-hud-bottom">
-                <span id="wb-pin-hint">
-                  Coloca los componentes en la protoboard o pulsa "Colocar piezas". Clic derecho en un cable para quitarlo.
-                </span>
-                <div class="wb-bench-quick">
-                  <button type="button" class="wb-mini-btn" id="wb-save-json-btn" title="Guardar circuito (.json)">
-                    <span class="icon-slot" data-icon="save"></span> Guardar
-                  </button>
-                  <button type="button" class="wb-mini-btn" id="wb-load-json-btn" title="Abrir circuito (.json)">
-                    <span class="icon-slot" data-icon="upload"></span> Abrir
-                  </button>
-                  <input type="file" id="wb-load-json-input" accept=".json" hidden />
-                  <button type="button" class="wb-mini-btn" id="wb-toggle-bb-btn" aria-pressed="true">
-                    Protoboard
-                  </button>
-                  <button type="button" class="wb-mini-btn" id="wb-reset-bench-btn">
-                    Limpiar mesa
-                  </button>
+              <!-- Selected Pin / Breadboard Track Hint + Controles rápidos -->
+              <div class="wb-hud-bottom-wrap">
+                <div class="wb-hud-bottom">
+                  <span id="wb-pin-hint">
+                    Coloca los componentes en la protoboard o pulsa "Colocar piezas". Clic derecho en un cable para quitarlo.
+                  </span>
+                  <div class="wb-bench-quick">
+                    <button type="button" class="wb-mini-btn" id="wb-save-json-btn" title="Guardar circuito (.json)">
+                      <span class="icon-slot" data-icon="save"></span> Guardar
+                    </button>
+                    <button type="button" class="wb-mini-btn" id="wb-load-json-btn" title="Abrir circuito (.json)">
+                      <span class="icon-slot" data-icon="upload"></span> Abrir
+                    </button>
+                    <input type="file" id="wb-load-json-input" accept=".json" hidden />
+                    <button type="button" class="wb-mini-btn" id="wb-toggle-bb-btn" aria-pressed="true">
+                      Protoboard
+                    </button>
+                    <button type="button" class="wb-mini-btn" id="wb-reset-bench-btn">
+                      Limpiar mesa
+                    </button>
+                  </div>
+                </div>
+                <div class="wb-controls-legend" aria-label="Atajos de controles del simulador">
+                  <span><kbd>Arrastrar</kbd> Mover pieza / Orbitar cámara</span>
+                  <span><kbd>Shift</kbd>+<kbd>Arrastrar</kbd> o <kbd>Clic der.</kbd> Desplazar vista</span>
+                  <span><kbd>Rueda</kbd> Zoom</span>
+                  <span><kbd>R</kbd> Rotar 90°</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> Deshacer</span>
+                  <span><kbd>Supr</kbd> Eliminar</span>
                 </div>
               </div>
             </div>
@@ -377,6 +425,9 @@
                   <div class="code-toolbar">
                     <span class="code-filename" id="code-filename">sketch_geogo.ino</span>
                     <div class="code-toolbar-btns">
+                      <button type="button" class="wb-mini-btn" id="btn-toggle-libs" title="Buscar e instalar librerías en caché">
+                        <span class="icon-slot" data-icon="library"></span> Librerías
+                      </button>
                       <button type="button" class="wb-mini-btn" id="btn-reset-code" title="Restablecer código original">
                         <span class="icon-slot" data-icon="rotate-ccw"></span> Restablecer
                       </button>
@@ -387,6 +438,14 @@
                         <span class="icon-slot" data-icon="download"></span> .ino
                       </button>
                     </div>
+                  </div>
+                  <div class="lib-drawer" id="wb-lib-drawer" hidden>
+                    <div class="lib-drawer-head">
+                      <strong>Gestor de Librerías (Caché local)</strong>
+                      <button type="button" class="ci-close" id="btn-close-libs" aria-label="Cerrar librerías">&times;</button>
+                    </div>
+                    <input type="search" id="wb-lib-search" placeholder="Buscar librería (Stepper, IRremote, MFRC522, SSD1306...)" />
+                    <div class="lib-drawer-list" id="wb-lib-list"></div>
                   </div>
                   <div class="code-editor-host" id="code-editor-host"></div>
                   <div class="code-error-box" id="code-error-box" hidden></div>
@@ -420,6 +479,11 @@
             </aside>
           </div>
         </div>
+      </section>
+
+      <!-- 01B · CALCULADORA BIDIRECCIONAL DE RESISTENCIAS -->
+      <section class="section-resistor-calc" id="calculadora-resistencias">
+        <div class="res-calc-container" id="resistor-calc-root"></div>
       </section>
 
       <!-- 02 · PUENTE VISUAL HACIA CLASES DE ELECTRÓNICA -->
@@ -480,12 +544,12 @@
           <div class="practice-cards">
             <article class="practice-card">
               <div class="practice-meta">
-                <span class="practice-tag">QUIZ 3D · 6 PREGUNTAS</span>
+                <span class="practice-tag">QUIZ 3D · 8 PREGUNTAS</span>
                 <h3>Encuentra la pieza</h3>
               </div>
               <p>
-                Identifica microcontroladores, reguladores, puertos y buses haciendo clic sobre el modelo 3D.
-                Las etiquetas se ocultan automáticamente durante el desafío.
+                Identifica pines digitales, analógicos, de potencia, PWM (~), botón RESET, LED de estado ON,
+                LED del pin 13 y luces TX/RX haciendo clic sobre el modelo 3D.
               </p>
               <button type="button" class="btn-primary" id="btn-start-quiz">
                 <span class="icon-slot" data-icon="crosshair"></span>

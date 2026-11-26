@@ -29,10 +29,16 @@ export interface NetlistAnalysis {
 
 export const THROUGH_HOLE_TYPES: ReadonlySet<ComponentType> = new Set([
   'resistor',
+  'ldr',
+  'capacitor',
+  'diode',
+  'transistor-npn',
   'led',
   'button',
+  'slide-switch',
   'buzzer',
   'rgb-led',
+  'ir-receiver',
 ]);
 
 /** Calcula el mapa exacto pin -> orificio de protoboard para componentes through-hole encajados */
@@ -44,10 +50,16 @@ export function computeSnappedPinsForHole(type: ComponentType, snapHole: string)
 
   const offsets: Record<string, Array<[string, number]>> = {
     resistor: [['P1', 0], ['P2', 4]],
+    ldr: [['P1', 0], ['P2', 2]],
+    capacitor: [['POS', 0], ['NEG', 1]],
+    diode: [['A', 0], ['K', 3]],
+    'transistor-npn': [['E', 0], ['B', 1], ['C', 2]],
     led: [['A', 0], ['K', 1]],
     button: [['A', 0], ['B', 2]],
+    'slide-switch': [['C1', 0], ['COM', 1], ['C2', 2]],
     buzzer: [['SIG', 0], ['GND', 2]],
     'rgb-led': [['R', 0], ['K', 1], ['G', 2], ['B', 3]],
+    'ir-receiver': [['OUT', 0], ['GND', 1], ['VCC', 2]],
   };
   const spec = offsets[type];
   if (!spec) return {};
@@ -138,6 +150,16 @@ export function analyzeNetlist(
     if (comp.type === 'button' && comp.state.pressed) {
       union(`comp:${comp.uid}:A`, `comp:${comp.uid}:B`);
     }
+    // Slide switch connects COM to C1 (pos 0) or C2 (pos 1)
+    if (comp.type === 'slide-switch') {
+      const pos = Number(comp.state.position ?? 0);
+      union(`comp:${comp.uid}:COM`, `comp:${comp.uid}:${pos === 1 ? 'C2' : 'C1'}`);
+    }
+    // Relay active closes COM <-> NO, idle closes COM <-> NC
+    if (comp.type === 'relay-5v') {
+      const active = Boolean(comp.state.active);
+      union(`comp:${comp.uid}:COM`, `comp:${comp.uid}:${active ? 'NO' : 'NC'}`);
+    }
     // Level Shifter common GND
     if (comp.type === 'level-shifter') {
       union(`comp:${comp.uid}:GND_H`, `comp:${comp.uid}:GND_L`);
@@ -173,6 +195,12 @@ export function analyzeNetlist(
     if (comp.type === 'resistor') {
       const ohms = Math.max(1, Number(comp.props?.ohms ?? 220));
       addBridge(`comp:${comp.uid}:P1`, `comp:${comp.uid}:P2`, 'resistor', ohms);
+    } else if (comp.type === 'ldr') {
+      const light = Math.max(0, Math.min(100, Number(comp.state?.lightPct ?? 60)));
+      const ldrOhms = Math.round(500 + ((100 - light) / 100) * 45_000);
+      addBridge(`comp:${comp.uid}:P1`, `comp:${comp.uid}:P2`, 'resistor', ldrOhms);
+    } else if (comp.type === 'diode') {
+      addBridge(`comp:${comp.uid}:A`, `comp:${comp.uid}:K`, 'resistor', 1);
     } else if (comp.type === 'level-shifter') {
       addBridge(`comp:${comp.uid}:HV1`, `comp:${comp.uid}:LV1`, 'shifter');
       addBridge(`comp:${comp.uid}:HV2`, `comp:${comp.uid}:LV2`, 'shifter');

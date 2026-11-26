@@ -1,31 +1,39 @@
 :root {
-  /* Paleta cálida editorial fiel a la referencia + identidad Liceo San Nicolás */
-  --paper: #f1eadc;
-  --paper-hi: #fbf7ee;
-  --paper-2: #ebe4d7;
-  --paper-lo: #e8dfcc;
-  --card: #fbf8f1;
-  --border: rgba(29, 27, 22, 0.14);
-  --border-strong: rgba(29, 27, 22, 0.24);
-  --rule-soft: rgba(29, 27, 22, 0.08);
+  /* Regla 60-30-10: 60% Cream (#F7F2EA), 30% Navy (#1C2B5A), 10% Orange (#FF7A1A) */
+  --paper: #f7f2ea;
+  --paper-hi: #fcf9f4;
+  --paper-2: #efe8dc;
+  --paper-lo: #e5dccd;
+  --card: #fdfbf7;
+  --border: rgba(28, 43, 90, 0.14);
+  --border-strong: rgba(28, 43, 90, 0.25);
+  --rule-soft: rgba(28, 43, 90, 0.08);
 
   /* Tinta y contraste */
-  --ink: #1d1b16;
-  --ink-2: rgba(29, 27, 22, 0.78);
-  --ink-3: rgba(29, 27, 22, 0.58);
+  --ink: #161d31;
+  --ink-2: rgba(22, 29, 49, 0.8);
+  --ink-3: rgba(22, 29, 49, 0.58);
 
-  /* Identidad Liceo Bicentenario San Nicolás */
-  --navy: #0b1c3d;
-  --navy-2: #1e3a5f;
-  --navy-soft: rgba(11, 28, 61, 0.08);
-  --gold: #c99700;
-  --gold-bright: #f6c101;
-  --gold-ink: #785500;
-  --gold-soft: rgba(201, 151, 0, 0.14);
+  /* Secundario 30%: Navy */
+  --navy: #1c2b5a;
+  --navy-2: #293d7a;
+  --navy-soft: rgba(28, 43, 90, 0.08);
+
+  /* Acento 10%: Orange */
+  --accent: #ff7a1a;
+  --accent-hover: #e56509;
+  --accent-ink: #b84a00;
+  --accent-soft: rgba(255, 122, 26, 0.13);
+
+  /* Alias compatibles para acento */
+  --gold: #ff7a1a;
+  --gold-bright: #ffb066;
+  --gold-ink: #b84a00;
+  --gold-soft: rgba(255, 122, 26, 0.13);
 
   /* Acento técnico secundario */
-  --teal: #0d7d8a;
-  --teal-soft: rgba(13, 125, 138, 0.1);
+  --teal: #1c2b5a;
+  --teal-soft: rgba(28, 43, 90, 0.1);
 
   /* Estados de simulación */
   --ok: #2c7a4b;
@@ -41,16 +49,16 @@
   --k-dig: #2f6fb5;
   --k-ana: #2e8b57;
   --k-com: #7a4fb3;
-  --k-ctl: #d9822b;
+  --k-ctl: #ff7a1a;
   --k-nc: #9a958a;
 
-  /* Paneles translúcidos sobre 3D (Frosted Glass idéntico en tacto a la referencia) */
-  --frost-bg: rgba(250, 246, 238, 0.94);
+  /* Paneles translúcidos sobre 3D */
+  --frost-bg: rgba(247, 242, 234, 0.90);
   --frost-blur: blur(22px) saturate(1.25);
-  --frost-shadow: 0 0 0 1px rgba(29, 27, 22, 0.08),
+  --frost-shadow: 0 0 0 1px rgba(28, 43, 90, 0.08),
     0 1px 0 rgba(255, 255, 255, 0.75) inset,
-    0 24px 46px -26px rgba(40, 28, 10, 0.5),
-    0 4px 12px -4px rgba(40, 28, 10, 0.14);
+    0 24px 46px -26px rgba(28, 43, 90, 0.35),
+    0 4px 12px -4px rgba(28, 43, 90, 0.12);
 
   /* Tipografía */
   --serif: "Crimson Pro", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;

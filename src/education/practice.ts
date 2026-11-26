@@ -8,22 +8,24 @@ const UNO_ASSEMBLY_ORDER = [
   'led_l',
   'led_txrx',
   'crystal',
-  'atmega16u2',
+  'usb_bridge',
   'regulator',
   'caps',
-  'reset_btn',
+  'reset',
   'icsp',
   'mcu',
   'headers_dig',
   'headers_pwr',
   'headers_ana',
+  'headers_pwm',
   'usb',
-  'dc_jack',
+  'jack',
 ];
 
 const ESP_ASSEMBLY_ORDER = [
   'antenna',
   'led_gpio2',
+  'led_pwr',
   'cp2102',
   'ams1117',
   'btn_boot',
@@ -31,6 +33,29 @@ const ESP_ASSEMBLY_ORDER = [
   'wroom',
   'usb_micro',
   'headers_esp',
+];
+
+// Preguntas prioritarias en "Encontrar la pieza": pines, PWM, reset y LEDs de estado
+const UNO_QUIZ_PRIORITY_IDS = [
+  'headers_dig',
+  'headers_ana',
+  'headers_pwr',
+  'headers_pwm',
+  'reset',
+  'led_on',
+  'led_l',
+  'led_txrx',
+];
+
+const ESP_QUIZ_PRIORITY_IDS = [
+  'headers_esp',
+  'btn_en',
+  'btn_boot',
+  'led_gpio2',
+  'led_pwr',
+  'ams1117',
+  'wroom',
+  'usb_micro',
 ];
 
 export class PracticeController {
@@ -126,7 +151,12 @@ export class PracticeController {
       this.quizAttempted = true;
       audio.playError();
       const clicked = this.spec.parts.find((p) => p.id === partId);
-      fb.textContent = `Eso es "${clicked?.name ?? partId}". Intenta de nuevo o pide una pista.`;
+      if (target.id === 'headers_pwm' && partId === 'headers_dig') {
+        fb.textContent =
+          'Ese es un pin digital común. Haz clic sobre alguno de los marcadores naranja PWM (~3, ~5, ~6, ~9, ~10, ~11).';
+      } else {
+        fb.textContent = `Eso es "${clicked?.name ?? partId}". Intenta de nuevo o pide una pista.`;
+      }
       fb.className = 'hq-feedback is-bad';
     }
   }
@@ -243,7 +273,14 @@ export class PracticeController {
 
   public startQuiz(): void {
     this.exitAssembly();
-    this.quizQuestions = this.spec.parts.slice(0, 6);
+    const priorityIds = this.spec.id === 'uno' ? UNO_QUIZ_PRIORITY_IDS : ESP_QUIZ_PRIORITY_IDS;
+    const byId = new Map(this.spec.parts.map((p) => [p.id, p]));
+    const selected: BoardPartDef[] = [];
+    for (const id of priorityIds) {
+      const part = byId.get(id);
+      if (part) selected.push(part);
+    }
+    this.quizQuestions = selected.length > 0 ? selected : this.spec.parts.slice(0, 8);
     this.quizIndex = 0;
     this.quizScore = 0;
     this.quizActive = true;

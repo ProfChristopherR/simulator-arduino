@@ -3,11 +3,12 @@ import './styles/layout.css';
 import './styles/workbench.css';
 
 import { BOARD_REGISTRY, getBoardSpec } from './boards/registry';
-import { hydrateIcons } from './core/icons';
+import { hydrateIcons, setSlotIcon } from './core/icons';
 import { lofi } from './core/lofi';
 import { HeroBoardViewer, type CameraPreset } from './core/viewer';
 import { renderCompareTable } from './education/compare';
 import { PracticeController } from './education/practice';
+import { mountResistorCalculator } from './education/resistor-calc';
 import { WorkbenchController } from './lab/workbench';
 import type { BoardId } from './types';
 
@@ -53,9 +54,42 @@ function bootstrap(): void {
   const practice = new PracticeController(viewer, getBoardSpec(activeBoard));
   const workbench = new WorkbenchController(wbHost);
 
+  const resCalcRoot = document.getElementById('resistor-calc-root');
+  if (resCalcRoot) mountResistorCalculator(resCalcRoot);
+
+  const headerEl = document.getElementById('top');
+  const syncHeaderScroll = () => {
+    if (!headerEl) return;
+    headerEl.classList.toggle('is-scrolled', window.scrollY > 40);
+  };
+  window.addEventListener('scroll', syncHeaderScroll, { passive: true });
+  syncHeaderScroll();
+
   document.getElementById('header-lofi-btn')?.addEventListener('click', () => {
-    const playing = lofi.toggle();
-    workbench.syncLofiButtons(playing);
+    lofi.toggle();
+  });
+  document.getElementById('header-lofi-prev')?.addEventListener('click', () => lofi.prev());
+  document.getElementById('header-lofi-next')?.addEventListener('click', () => lofi.next());
+  document.getElementById('header-lofi-pause')?.addEventListener('click', () => {
+    const st = lofi.getState();
+    if (st.playing) lofi.pause();
+    else lofi.resume();
+  });
+
+  lofi.subscribe((st) => {
+    const active = st.playing || st.paused;
+    const hBtn = document.getElementById('header-lofi-btn');
+    const hCtrls = document.getElementById('header-lofi-controls');
+    const hPauseSlot = document.querySelector('#header-lofi-pause .icon-slot');
+    if (hBtn) {
+      hBtn.classList.toggle('is-playing', st.playing);
+      hBtn.classList.toggle('is-paused', st.paused);
+      hBtn.setAttribute('aria-pressed', String(st.playing));
+      hBtn.title = active ? `${st.trackTitle} (${st.trackIndex + 1}/${st.totalTracks})` : 'Activar música ambiental Lofi aleatoria';
+    }
+    if (hCtrls) hCtrls.hidden = !active;
+    if (hPauseSlot) setSlotIcon(hPauseSlot, st.playing ? 'pause' : 'play');
+    workbench.syncLofiState(st);
   });
 
   function highlightLabelListItem(partId: string | null): void {

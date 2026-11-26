@@ -169,8 +169,18 @@ const ESP_PARTS: BoardPartDef[] = [
     quizHint: 'Pequeño LED azul SMD cerca del centro de la placa.',
   },
   {
-    id: 'headers_esp',
+    id: 'led_pwr',
     num: 9,
+    name: 'LED de encendido "PWR" (Rojo)',
+    category: 'INDICADOR',
+    summary: 'LED rojo que confirma alimentación activa de 3.3 V desde el regulador.',
+    localPos: [-0.25, 0.14, -0.55],
+    size: [0.22, 0.14, 0.16],
+    quizHint: 'Pequeño LED rojo SMD frente al LED azul integrado.',
+  },
+  {
+    id: 'headers_esp',
+    num: 10,
     name: 'Tiras de pines 30 GPIO (3.3 V)',
     category: 'ENTRADAS / SALIDAS',
     summary: 'Doble fila de 15 pines macho compatibles con protoboard (lógica estricta 3.3 V).',
@@ -279,7 +289,8 @@ function buildEsp323D(): BuiltBoard3D {
 
   const ledPwr = createSmdLed(0xe74c3c);
   ledPwr.position.set(-0.25, PCB_H * 0.5 + 0.035, -0.55);
-  (ledPwr.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.7;
+  (ledPwr.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.9;
+  tagPart(ledPwr, 'led_pwr', partMeshes);
   group.add(ledPwr);
 
   // 9. Pines macho

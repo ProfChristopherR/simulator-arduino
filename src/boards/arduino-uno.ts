@@ -196,46 +196,76 @@ const UNO_PARTS: BoardPartDef[] = [
   {
     id: 'headers_dig',
     num: 9,
-    name: 'Cabecera Digital (D0–D13)',
+    name: 'Pines Digitales (D0–D13)',
     category: 'ENTRADAS / SALIDAS',
-    summary: '14 pines digitales (5 V) para leer botones/sensores o controlar LEDs y servos (~ PWM).',
+    summary: '14 pines digitales (5 V) para leer botones/sensores o controlar LEDs y actuadores.',
     localPos: [0.65, 0.32, -2.34],
     size: [4.8, 0.45, 0.3],
-    quizHint: 'Fila superior larga de conectores negros.',
+    quizHint: 'Fila superior larga de conectores hembra (numerados de 0 a 13).',
   },
   {
     id: 'headers_pwr',
     num: 10,
-    name: 'Cabecera de Potencia y Analógicos (A0–A5)',
-    category: 'ENERGÍA / ANALÓGICO',
-    summary: 'Pines 3.3V, 5V, GND, VIN y 6 entradas analógicas (A0–A5, con SDA/SCL para I2C).',
-    localPos: [0.98, 0.32, 2.34],
-    size: [4.1, 0.45, 0.3],
-    quizHint: 'Fila inferior de conectores negros (energía y entradas analógicas).',
+    name: 'Pines de Potencia (POWER: 3.3V, 5V, GND, VIN)',
+    category: 'ENERGÍA',
+    summary: 'Salidas reguladas de 5 V y 3.3 V, entrada VIN (7–12 V), RESET y pines de tierra común GND.',
+    localPos: [0.05, 0.32, 2.34],
+    size: [1.85, 0.45, 0.3],
+    quizHint: 'Bloque inferior izquierdo de la fila inferior (etiquetado POWER).',
+  },
+  {
+    id: 'headers_ana',
+    num: 11,
+    name: 'Pines Analógicos (A0–A5)',
+    category: 'ENTRADAS ANALÓGICAS',
+    summary: '6 entradas analógicas de 10 bits (0–1023) para leer sensores continuos como potenciómetros o LDR.',
+    localPos: [1.98, 0.32, 2.34],
+    size: [1.6, 0.45, 0.3],
+    quizHint: 'Bloque inferior derecho de la fila inferior (etiquetado ANALOG IN: A0 a A5).',
+  },
+  {
+    id: 'headers_pwm',
+    num: 12,
+    name: 'Pines PWM (~3, ~5, ~6, ~9, ~10, ~11)',
+    category: 'MODULACIÓN PWM ~',
+    summary: '6 pines digitales especiales marcados con ~ capaces de simular salidas analógicas (brillo LED / servos).',
+    localPos: [0.45, 0.44, -2.34],
+    size: [3.4, 0.3, 0.28],
+    quizHint: 'Busca los 6 pines superiores señalados con el símbolo ~ (D3, D5, D6, D9, D10 y D11).',
   },
   {
     id: 'led_l',
-    num: 11,
+    num: 13,
     name: 'LED integrado "L" (Pin D13)',
     category: 'INDICADOR',
     summary: 'LED amarillo/ámbar conectado internamente al pin D13 para pruebas rápidas sin cablear.',
     localPos: [-0.45, 0.14, -1.35],
-    size: [0.22, 0.14, 0.16],
-    quizHint: 'Pequeño LED SMD amarillo junto a la cabecera digital superior.',
+    size: [0.28, 0.16, 0.24],
+    quizHint: 'Pequeño LED SMD amarillo junto a la cabecera digital superior, etiquetado con la letra L.',
   },
   {
     id: 'led_on',
-    num: 12,
+    num: 14,
     name: 'LED de encendido "ON"',
     category: 'INDICADOR',
-    summary: 'Se ilumina en verde cuando la placa recibe alimentación correcta de 5 V.',
-    localPos: [2.35, 0.14, -1.05],
-    size: [0.22, 0.14, 0.16],
-    quizHint: 'Pequeño LED verde en el costado derecho de la placa.',
+    summary: 'LED de estado verde que indica que la placa recibe alimentación correcta de 5 V.',
+    localPos: [2.28, 0.14, -1.06],
+    size: [0.28, 0.16, 0.24],
+    quizHint: 'Pequeño LED verde encendido en el costado derecho de la placa, junto al texto ON.',
+  },
+  {
+    id: 'led_txrx',
+    num: 15,
+    name: 'LEDs de estado Serial (TX / RX)',
+    category: 'INDICADOR',
+    summary: 'Par de LEDs ámbar que parpadean cuando Arduino transmite (TX) o recibe (RX) datos USB Serial.',
+    localPos: [-0.56, 0.14, -0.9],
+    size: [0.28, 0.16, 0.42],
+    quizHint: 'Dos LEDs SMD juntos debajo del LED L, marcados como TX y RX.',
   },
   {
     id: 'icsp',
-    num: 13,
+    num: 16,
     name: 'Conector ICSP (6 pines)',
     category: 'PROGRAMACIÓN / SPI',
     summary: 'Conector de 2×3 pines para grabar bootloader o acceder al bus SPI (MOSI, MISO, SCK).',
@@ -499,11 +529,29 @@ function buildUno3D(): BuiltBoard3D {
   tagPart(topHeaderGrp, 'headers_dig', partMeshes);
   group.add(topHeaderGrp);
 
-  const botHeaderGrp = new THREE.Group();
-  botHeaderGrp.add(createFemaleHeaderRow(botPowerPins, pinAnchors, 'horizontal'));
-  botHeaderGrp.add(createFemaleHeaderRow(botAnalogPins, pinAnchors, 'horizontal'));
-  tagPart(botHeaderGrp, 'headers_pwr', partMeshes);
-  group.add(botHeaderGrp);
+  const botPowerHeader = createFemaleHeaderRow(botPowerPins, pinAnchors, 'horizontal');
+  tagPart(botPowerHeader, 'headers_pwr', partMeshes);
+  group.add(botPowerHeader);
+
+  const botAnalogHeader = createFemaleHeaderRow(botAnalogPins, pinAnchors, 'horizontal');
+  tagPart(botAnalogHeader, 'headers_ana', partMeshes);
+  group.add(botAnalogHeader);
+
+  // Marcadores táctiles dorados/naranja sobre los 6 pines PWM (~3, ~5, ~6, ~9, ~10, ~11)
+  const pwmGroup = new THREE.Group();
+  const pwmMarkMat = new THREE.MeshStandardMaterial({
+    color: 0xff7a1a,
+    emissive: 0xff7a1a,
+    emissiveIntensity: 0.22,
+    roughness: 0.35,
+  });
+  for (const p of UNO_PINS.filter((pin) => pin.pwm)) {
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.26), pwmMarkMat);
+    cap.position.set(p.localPos[0], p.localPos[1] + 0.025, p.localPos[2]);
+    pwmGroup.add(cap);
+  }
+  tagPart(pwmGroup, 'headers_pwm', partMeshes);
+  group.add(pwmGroup);
 
   // Segundo conector ICSP (para el puente USB ATmega16U2) con base plástica negra
   const icspUsb = new THREE.Group();
@@ -521,26 +569,34 @@ function buildUno3D(): BuiltBoard3D {
   icspUsb.position.set(-1.58, PCB_H * 0.5, -1.72);
   group.add(icspUsb);
 
-  // 11 & 12. LEDs integrados con halo luminoso real
+  // 11 & 12 & 15. LEDs integrados con halo luminoso real
   const ledL = createSmdLed(0xf6c101);
   ledL.position.set(-0.56, PCB_H * 0.5 + 0.038, -1.35);
+  const ledLGlow = createGlowSprite(0xf6c101, 0.44);
+  ledLGlow.position.set(0, 0.06, 0);
+  ledLGlow.visible = false;
+  ledL.add(ledLGlow);
+  ledL.userData.glowSprite = ledLGlow;
   tagPart(ledL, 'led_l', partMeshes);
   group.add(ledL);
 
   const ledOn = createSmdLed(0x2ecc71);
   ledOn.position.set(2.28, PCB_H * 0.5 + 0.038, -1.06);
-  (ledOn.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.2;
-  const onGlow = createGlowSprite(0x2ecc71, 0.44);
+  (ledOn.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.4;
+  const onGlow = createGlowSprite(0x2ecc71, 0.48);
   onGlow.position.set(0, 0.06, 0);
   ledOn.add(onGlow);
   tagPart(ledOn, 'led_on', partMeshes);
   group.add(ledOn);
 
+  const ledTxRxGrp = new THREE.Group();
   const ledTx = createSmdLed(0xf39c12);
   ledTx.position.set(-0.56, PCB_H * 0.5 + 0.038, -1.02);
   const ledRx = createSmdLed(0xf39c12);
   ledRx.position.set(-0.56, PCB_H * 0.5 + 0.038, -0.78);
-  group.add(ledTx, ledRx);
+  ledTxRxGrp.add(ledTx, ledRx);
+  tagPart(ledTxRxGrp, 'led_txrx', partMeshes);
+  group.add(ledTxRxGrp);
 
   // 13. Conector ICSP derecho 2x3 con base plástica negra
   const icspGrp = new THREE.Group();

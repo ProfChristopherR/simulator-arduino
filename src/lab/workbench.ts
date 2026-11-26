@@ -12,7 +12,7 @@ import { getBoardSpec } from '../boards/registry';
 import { audio } from '../core/audio';
 import { createSilkCanvasTexture, setupStudioRenderer } from '../core/board-builder';
 import { setSlotIcon } from '../core/icons';
-import { lofi } from '../core/lofi';
+import { lofi, type LofiState } from '../core/lofi';
 import type {
   BoardId,
   BoardSpec,
@@ -39,6 +39,8 @@ import {
   type NetlistAnalysis,
 } from './netlist';
 import { ArduinoCompileError, ArduinoRuntime } from './simulator/runtime';
+import { getInstalledLibraryIds, installLibrary, searchLibraries, uninstallLibrary } from './simulator/libraries';
+import { ViewCubeGizmo, type CubeViewPreset } from './view-cube';
 import { animateWireMesh, buildJumperWireMesh } from './wiring';
 
 const COMPLETED_STORAGE_KEY = 'geogo_completed_missions_v1';
@@ -134,6 +136,21 @@ export class WorkbenchController {
   private serialRxQueue: string[] = [];
   private rafId = 0;
 
+  private viewCube: ViewCubeGizmo | null = null;
+  private cameraTweenTarget: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
+  private paletteThumbs = new Map<ComponentType, string>();
+  private activeKnobDrag: {
+    uid: string;
+    startX: number;
+    startY: number;
+    startVal: number;
+    startValY: number;
+    kind: 'pot' | 'joy';
+  } | null = null;
+  private lastIrCommand: number | null = null;
+  private rfidCardPresent = false;
+  private stepperAngleDeg = 0;
+
   private undoStack: Array<{
     components: PlacedComponent[];
     wires: WireDef[];
@@ -227,13 +244,47 @@ export class WorkbenchController {
       parent: editorHost,
     });
 
+    const vcHost = document.getElementById('wb-viewcube-host');
+    if (vcHost) {
+      this.viewCube = new ViewCubeGizmo(vcHost, this.camera, this.controls, (preset) => {
+        this.setCameraPreset(preset);
+      });
+    }
+
+    this.paletteThumbs = renderComponentThumbnails();
     this.renderPalette();
+    this.renderLibraryDrawer();
     this.populateMissions();
     this.bindUI();
     this.bind3DEvents();
     this.setBoard('uno');
     this.loadMission(MISSIONS[0].id);
     this.animate();
+  }
+
+  private setCameraPreset(preset: CubeViewPreset): void {
+    const target = new THREE.Vector3(-0.6, 0, 0);
+    const map: Record<CubeViewPreset, THREE.Vector3> = {
+      iso: new THREE.Vector3(-0.6, 14.5, 13.8),
+      top: new THREE.Vector3(-0.6, 18.0, 0.05),
+      bottom: new THREE.Vector3(-0.6, 3.2, -14.5),
+      front: new THREE.Vector3(-0.6, 4.2, 16.5),
+      back: new THREE.Vector3(-0.6, 4.2, -16.5),
+      left: new THREE.Vector3(-17.0, 5.2, 0),
+      right: new THREE.Vector3(15.8, 5.2, 0),
+    };
+    this.cameraTweenTarget = { pos: map[preset], look: target };
+    this.controls.target.copy(target);
+  }
+
+  private guardNotRunning(actionLabel: string): boolean {
+    if (!this.isRunning) return false;
+    const hint = document.getElementById('wb-pin-hint');
+    if (hint) {
+      hint.textContent = `Simulación activa: detén la simulación antes de ${actionLabel} (sin hot-swap).`;
+    }
+    audio.playClick(300, 35);
+    return true;
   }
 
   private loadCompletedMissions(): void {
@@ -315,9 +366,10 @@ export class WorkbenchController {
     this.refreshGuideBadges();
   }
 
-  private renderPalette(): void {
+  private renderPalette(filterQuery = ''): void {
     const root = document.getElementById('wb-palette')!;
-    const thumbs = renderComponentThumbnails();
+    const thumbs = this.paletteThumbs;
+    const q = filterQuery.trim().toLowerCase();
     const categories = [
       'Prototipado e Interfaz',
       'Pasivos y Básicos',
@@ -327,8 +379,18 @@ export class WorkbenchController {
     ] as const;
 
     root.innerHTML = '';
+    let totalShown = 0;
+
     for (const cat of categories) {
-      const items = COMPONENT_CATALOG.filter((c) => c.category === cat);
+      const items = COMPONENT_CATALOG.filter((c) => {
+        if (c.category !== cat) return false;
+        if (!q) return true;
+        const haystack = `${c.name} ${c.shortDesc} ${c.category} ${c.type} ${(c.keywords ?? []).join(' ')}`.toLowerCase();
+        return haystack.includes(q);
+      });
+      if (items.length === 0) continue;
+      totalShown += items.length;
+
       const sec = document.createElement('section');
       sec.innerHTML = `<h4 class="palette-group-title">${cat}</h4><div class="palette-items"></div>`;
       const list = sec.querySelector('.palette-items')!;
@@ -351,12 +413,93 @@ export class WorkbenchController {
         `;
         btn.addEventListener('click', () => {
           this.addComponentToBench(item.type);
-          audio.playSnapClick();
         });
         list.appendChild(btn);
       }
       root.appendChild(sec);
     }
+
+    if (totalShown === 0) {
+      root.innerHTML = `<p class="palette-empty-note">No hay componentes que coincidan con "${filterQuery}".</p>`;
+    }
+  }
+
+  private renderLibraryDrawer(query = ''): void {
+    const listEl = document.getElementById('wb-lib-list');
+    if (!listEl) return;
+    const installed = getInstalledLibraryIds();
+    const libs = searchLibraries(query);
+    listEl.innerHTML = '';
+
+    if (libs.length === 0) {
+      listEl.innerHTML = `<p class="palette-empty-note">Sin resultados para "${query}".</p>`;
+      return;
+    }
+
+    for (const lib of libs) {
+      const isInst = installed.has(lib.id);
+      const card = document.createElement('div');
+      card.className = 'lib-item';
+      card.innerHTML = `
+        <div class="lib-item-top">
+          <strong>${lib.name} <code>&lt;${lib.header}&gt;</code></strong>
+          <span class="lib-ver">v${lib.version} · ${lib.author}</span>
+        </div>
+        <p>${lib.description}</p>
+        <div class="lib-item-actions">
+          <div>
+            ${isInst ? `<span class="lib-badge">${lib.preinstalled ? 'Core incluida' : 'En caché local'}</span>` : ''}
+          </div>
+          <div style="display:flex;gap:5px">
+            ${
+              isInst
+                ? `<button type="button" class="wb-mini-btn wb-mini-btn-primary" data-lib-include="${lib.id}">+ #include</button>`
+                : ''
+            }
+            ${
+              lib.preinstalled
+                ? ''
+                : isInst
+                  ? `<button type="button" class="wb-mini-btn ci-btn-danger" data-lib-uninstall="${lib.id}">Quitar</button>`
+                  : `<button type="button" class="wb-mini-btn wb-mini-btn-primary" data-lib-install="${lib.id}">Instalar en caché</button>`
+            }
+          </div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    }
+
+    listEl.querySelectorAll<HTMLButtonElement>('[data-lib-install]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        installLibrary(btn.dataset.libInstall!);
+        audio.playSuccess();
+        const searchVal = (document.getElementById('wb-lib-search') as HTMLInputElement | null)?.value ?? '';
+        this.renderLibraryDrawer(searchVal);
+      });
+    });
+
+    listEl.querySelectorAll<HTMLButtonElement>('[data-lib-uninstall]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        uninstallLibrary(btn.dataset.libUninstall!);
+        audio.playClick(400, 30);
+        const searchVal = (document.getElementById('wb-lib-search') as HTMLInputElement | null)?.value ?? '';
+        this.renderLibraryDrawer(searchVal);
+      });
+    });
+
+    listEl.querySelectorAll<HTMLButtonElement>('[data-lib-include]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lib = searchLibraries('').find((l) => l.id === btn.dataset.libInclude);
+        if (!lib) return;
+        const cur = this.editorView.state.doc.toString();
+        if (!cur.includes(lib.header)) {
+          this.editorView.dispatch({
+            changes: { from: 0, to: 0, insert: `${lib.snippetInclude}\n` },
+          });
+        }
+        audio.playSnapClick();
+      });
+    });
   }
 
   private populateMissions(): void {
@@ -521,6 +664,7 @@ export class WorkbenchController {
   }
 
   private async placeAllMissionComponents(): Promise<void> {
+    if (this.guardNotRunning('colocar piezas')) return;
     const token = this.animToken;
     const missing = this.currentMission.components.filter(
       (mc) => !this.components.some((c) => c.uid === mc.uid)
@@ -542,6 +686,7 @@ export class WorkbenchController {
   }
 
   private async autoWireMission(): Promise<void> {
+    if (this.guardNotRunning('cablear el circuito')) return;
     const token = this.animToken;
     this.pushHistory();
 
@@ -618,6 +763,7 @@ export class WorkbenchController {
   }
 
   public undo(): void {
+    if (this.guardNotRunning('deshacer cambios')) return;
     const prev = this.undoStack.pop();
     if (!prev) return;
     this.redoStack.push(this.captureSnapshot());
@@ -628,6 +774,7 @@ export class WorkbenchController {
   }
 
   public redo(): void {
+    if (this.guardNotRunning('rehacer cambios')) return;
     const nxt = this.redoStack.pop();
     if (!nxt) return;
     this.undoStack.push(this.captureSnapshot());
@@ -718,14 +865,30 @@ export class WorkbenchController {
   private defaultComponentState(type: ComponentType): Record<string, number | boolean | string> {
     switch (type) {
       case 'button': return { pressed: false };
+      case 'slide-switch': return { position: 0 };
       case 'potentiometer': return { value: 512 };
+      case 'joystick': return { x: 512, y: 512, pressed: false };
       case 'ultrasonic': return { distanceCm: 45, active: false };
       case 'ldr': return { lightPct: 60 };
+      case 'pir-sensor': return { motion: false };
+      case 'soil-moisture': return { moisturePct: 45 };
+      case 'gas-mq2': return { gasLevel: 180 };
+      case 'sound-sensor': return { soundLevel: 25 };
       case 'dht11': return { tempC: 23.0, humidity: 52 };
       case 'bme280': return { tempC: 21.5, pressureHpa: 1013.25, humidity: 54 };
       case 'co2-sensor': return { ppm: 480 };
       case 'optical-encoder': return { rpm: 180, pulse: 0 };
       case 'servo': return { angle: 90, targetAngle: 90 };
+      case 'dc-motor': return { speed: 0 };
+      case 'stepper-28byj': return { stepAngle: 0 };
+      case 'uln2003-driver': return { phaseMask: 0 };
+      case 'relay-5v': return { active: false };
+      case 'seven-seg': return { mask: 0, active: false };
+      case 'led-matrix': return { rows: '0,0,0,0,0,0,0,0' };
+      case 'oled-i2c': return { text: 'OLED 128x64\nGeogo I2C listo' };
+      case 'rfid-rc522': return { cardPresent: false };
+      case 'ir-receiver': return { rxFlashUntil: 0 };
+      case 'ir-remote': return { lastCmd: 0x45, txFlashUntil: 0 };
       case 'rgb-led': return { r: 0, g: 0, b: 0 };
       case 'lcd-i2c': return { line0: 'Liceo San Nicolas', line1: 'Tecnologia Geogo', powered: true };
       default: return {};
@@ -733,6 +896,7 @@ export class WorkbenchController {
   }
 
   private addComponentToBench(type: ComponentType): void {
+    if (this.guardNotRunning('añadir componentes')) return;
     this.pushHistory();
     const item = getCatalogItem(type);
     // Si la misión actual pide este tipo de pieza y aún falta, vincular su uid para validar pasos
@@ -789,6 +953,7 @@ export class WorkbenchController {
   }
 
   private rotateSelectedTarget(): void {
+    if (this.guardNotRunning('rotar piezas')) return;
     if (!this.selectedTarget) return;
     this.pushHistory();
     if (this.selectedTarget.kind === 'board') {
@@ -814,6 +979,7 @@ export class WorkbenchController {
   }
 
   private deleteSelectedComponent(): void {
+    if (this.guardNotRunning('eliminar componentes')) return;
     if (this.selectedTarget?.kind !== 'comp') return;
     this.pushHistory();
     const uid = this.selectedTarget.uid;
@@ -930,6 +1096,7 @@ export class WorkbenchController {
     box.querySelector('#ci-delete-btn')?.addEventListener('click', () => this.deleteSelectedComponent());
 
     const applyProp = (key: string, val: number | string) => {
+      if (this.guardNotRunning('modificar valores del hardware')) return;
       comp.props[key] = val;
       this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
       this.updateDiagnostics();
@@ -1204,7 +1371,27 @@ export class WorkbenchController {
       this.autoWireMission();
     });
 
+    document.getElementById('wb-palette-search')?.addEventListener('input', (e) => {
+      this.renderPalette((e.target as HTMLInputElement).value);
+    });
+
+    const libDrawer = document.getElementById('wb-lib-drawer');
+    document.getElementById('btn-toggle-libs')?.addEventListener('click', () => {
+      if (!libDrawer) return;
+      libDrawer.hidden = !libDrawer.hidden;
+      if (!libDrawer.hidden) {
+        this.renderLibraryDrawer((document.getElementById('wb-lib-search') as HTMLInputElement | null)?.value ?? '');
+      }
+    });
+    document.getElementById('btn-close-libs')?.addEventListener('click', () => {
+      if (libDrawer) libDrawer.hidden = true;
+    });
+    document.getElementById('wb-lib-search')?.addEventListener('input', (e) => {
+      this.renderLibraryDrawer((e.target as HTMLInputElement).value);
+    });
+
     document.getElementById('wb-clear-wires-btn')?.addEventListener('click', () => {
+      if (this.guardNotRunning('quitar cables')) return;
       this.animToken++;
       this.pushHistory();
       this.wires = [];
@@ -1217,8 +1404,7 @@ export class WorkbenchController {
     });
 
     document.getElementById('wb-topview-btn')?.addEventListener('click', () => {
-      this.camera.position.set(-0.6, 17.5, 0.01);
-      this.controls.target.set(-0.6, 0, 0);
+      this.setCameraPreset('top');
     });
 
     document.getElementById('wb-sound-btn')?.addEventListener('click', (e) => {
@@ -1231,8 +1417,14 @@ export class WorkbenchController {
     });
 
     document.getElementById('wb-lofi-btn')?.addEventListener('click', () => {
-      const playing = lofi.toggle();
-      this.syncLofiButtons(playing);
+      lofi.toggle();
+    });
+    document.getElementById('wb-lofi-prev')?.addEventListener('click', () => lofi.prev());
+    document.getElementById('wb-lofi-next')?.addEventListener('click', () => lofi.next());
+    document.getElementById('wb-lofi-pause')?.addEventListener('click', () => {
+      const st = lofi.getState();
+      if (st.playing) lofi.pause();
+      else lofi.resume();
     });
 
     document.getElementById('wb-fullscreen-btn')?.addEventListener('click', async () => {
@@ -1296,6 +1488,7 @@ export class WorkbenchController {
     });
 
     document.getElementById('wb-toggle-bb-btn')?.addEventListener('click', (e) => {
+      if (this.guardNotRunning('ocultar o mover la protoboard')) return;
       this.showBreadboard = !this.showBreadboard;
       this.bbGroup.visible = this.showBreadboard;
       (e.currentTarget as HTMLButtonElement).setAttribute('aria-pressed', String(this.showBreadboard));
@@ -1304,6 +1497,7 @@ export class WorkbenchController {
     });
 
     document.getElementById('wb-reset-bench-btn')?.addEventListener('click', () => {
+      if (this.guardNotRunning('limpiar la mesa')) return;
       this.loadMission('libre');
     });
 
@@ -1329,7 +1523,10 @@ export class WorkbenchController {
     });
 
     const jsonInput = document.getElementById('wb-load-json-input') as HTMLInputElement | null;
-    document.getElementById('wb-load-json-btn')?.addEventListener('click', () => jsonInput?.click());
+    document.getElementById('wb-load-json-btn')?.addEventListener('click', () => {
+      if (this.guardNotRunning('abrir otro proyecto')) return;
+      jsonInput?.click();
+    });
     jsonInput?.addEventListener('change', async () => {
       const file = jsonInput.files?.[0];
       if (!file) return;
@@ -1431,17 +1628,19 @@ export class WorkbenchController {
     });
   }
 
-  public syncLofiButtons(playing: boolean): void {
-    const hBtn = document.getElementById('header-lofi-btn');
+  public syncLofiState(st: LofiState): void {
+    const active = st.playing || st.paused;
     const wBtn = document.getElementById('wb-lofi-btn');
-    if (hBtn) {
-      hBtn.classList.toggle('is-playing', playing);
-      hBtn.setAttribute('aria-pressed', String(playing));
-    }
+    const wCtrls = document.getElementById('wb-lofi-controls');
+    const wPauseSlot = document.querySelector('#wb-lofi-pause .icon-slot');
     if (wBtn) {
-      wBtn.classList.toggle('is-active', playing);
-      wBtn.setAttribute('aria-pressed', String(playing));
+      wBtn.classList.toggle('is-active', st.playing);
+      wBtn.classList.toggle('is-paused', st.paused);
+      wBtn.setAttribute('aria-pressed', String(st.playing));
+      wBtn.title = active ? `${st.trackTitle} (${st.trackIndex + 1}/${st.totalTracks})` : 'Música ambiental Lofi aleatoria';
     }
+    if (wCtrls) wCtrls.hidden = !active;
+    if (wPauseSlot) setSlotIcon(wPauseSlot, st.playing ? 'pause' : 'play');
   }
 
   private toggleButtonState(comp: PlacedComponent): void {
@@ -1455,7 +1654,34 @@ export class WorkbenchController {
     this.renderTryItCard();
   }
 
+  private toggleSwitchState(comp: PlacedComponent): void {
+    comp.state.position = Number(comp.state.position ?? 0) === 1 ? 0 : 1;
+    this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+    audio.playSwitchClick();
+    this.updateDiagnostics();
+    this.syncHardwareVisuals();
+    this.renderEnvControls();
+    this.renderTryItCard();
+  }
+
+  private triggerIrCode(cmd: number): void {
+    this.lastIrCommand = cmd;
+    const now = performance.now();
+    for (const comp of this.components) {
+      if (comp.type === 'ir-remote') {
+        comp.state.lastCmd = cmd;
+        comp.state.txFlashUntil = now + 260;
+        this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+      } else if (comp.type === 'ir-receiver') {
+        comp.state.rxFlashUntil = now + 260;
+        this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+      }
+    }
+    audio.playClick(980, 20);
+  }
+
   private removeWireById(wireId: string): void {
+    if (this.guardNotRunning('quitar cables')) return;
     if (!this.wires.some((w) => w.id === wireId)) return;
     this.pushHistory();
     this.wires = this.wires.filter((w) => w.id !== wireId);
@@ -1496,6 +1722,7 @@ export class WorkbenchController {
       if (e.button !== 0) return;
       downPos = { x: e.clientX, y: e.clientY };
       this.dragMoved = false;
+      this.cameraTweenTarget = null;
       updatePointer(e.clientX, e.clientY);
       this.raycaster.setFromCamera(this.pointer, this.camera);
 
@@ -1506,6 +1733,56 @@ export class WorkbenchController {
       if (pinHits.length > 0) return;
 
       const compHits = this.raycaster.intersectObjects(this.compGroup.children, true);
+      const interactiveHit = compHits.find((h) => h.object.userData?.interactiveCompUid);
+      if (interactiveHit) {
+        const uid = interactiveHit.object.userData.interactiveCompUid as string;
+        const action = interactiveHit.object.userData.action as string;
+        const comp = this.components.find((c) => c.uid === uid);
+        if (comp && action === 'rotate-pot') {
+          this.activeKnobDrag = {
+            uid,
+            startX: e.clientX,
+            startY: e.clientY,
+            startVal: Number(comp.state.value ?? 512),
+            startValY: 0,
+            kind: 'pot',
+          };
+          this.controls.enabled = false;
+          canvas.style.cursor = 'ew-resize';
+          return;
+        }
+        if (comp && action === 'move-joystick') {
+          this.activeKnobDrag = {
+            uid,
+            startX: e.clientX,
+            startY: e.clientY,
+            startVal: Number(comp.state.x ?? 512),
+            startValY: Number(comp.state.y ?? 512),
+            kind: 'joy',
+          };
+          this.controls.enabled = false;
+          canvas.style.cursor = 'move';
+          return;
+        }
+        if (comp && (action === 'toggle-button' || action === 'toggle-switch') && this.isRunning) {
+          if (action === 'toggle-button') this.toggleButtonState(comp);
+          else this.toggleSwitchState(comp);
+          return;
+        }
+      }
+
+      // Bloqueo estricto durante simulación: no se pueden mover componentes, placas ni protoboard
+      if (this.isRunning) {
+        const anyHit =
+          compHits.length > 0 ||
+          this.raycaster.intersectObjects(this.boardGroup.children, true).length > 0 ||
+          (this.showBreadboard && this.raycaster.intersectObjects(this.bbGroup.children, true).length > 0);
+        if (anyHit) {
+          hint.textContent = 'Simulación activa: detén la simulación para mover piezas o cablear (sin hot-swap).';
+        }
+        return;
+      }
+
       const dragComp = compHits.find((h) => h.object.userData?.draggableCompUid);
       if (dragComp) {
         const uid = dragComp.object.userData.draggableCompUid as string;
@@ -1545,6 +1822,28 @@ export class WorkbenchController {
     canvas.addEventListener('pointermove', (e) => {
       updatePointer(e.clientX, e.clientY);
       this.raycaster.setFromCamera(this.pointer, this.camera);
+
+      if (this.activeKnobDrag) {
+        this.showHoverTooltip(0, 0, null);
+        const comp = this.components.find((c) => c.uid === this.activeKnobDrag!.uid);
+        if (comp) {
+          const dx = e.clientX - this.activeKnobDrag.startX;
+          const dy = e.clientY - this.activeKnobDrag.startY;
+          if (this.activeKnobDrag.kind === 'pot') {
+            const val = Math.max(0, Math.min(1023, Math.round(this.activeKnobDrag.startVal + dx * 4)));
+            comp.state.value = val;
+            hint.textContent = `${comp.name}: ${val} / 1023 (${Math.round((val / 1023) * 100)}%)`;
+          } else {
+            comp.state.x = Math.max(0, Math.min(1023, Math.round(this.activeKnobDrag.startVal + dx * 5)));
+            comp.state.y = Math.max(0, Math.min(1023, Math.round(this.activeKnobDrag.startValY + dy * 5)));
+            hint.textContent = `Joystick X:${comp.state.x} Y:${comp.state.y}`;
+          }
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          this.renderTryItCard();
+          this.renderEnvControls();
+        }
+        return;
+      }
 
       if (this.draggingTarget) {
         this.showHoverTooltip(0, 0, null);
@@ -1671,6 +1970,13 @@ export class WorkbenchController {
     });
 
     canvas.addEventListener('pointerup', (e) => {
+      if (this.activeKnobDrag) {
+        this.activeKnobDrag = null;
+        this.controls.enabled = true;
+        canvas.style.cursor = 'grab';
+        return;
+      }
+
       if (this.draggingTarget) {
         const prev = this.draggingTarget;
         this.draggingTarget = null;
@@ -1699,6 +2005,10 @@ export class WorkbenchController {
           const comp = this.components.find((c) => c.uid === prev.uid);
           if (comp?.type === 'button') {
             this.toggleButtonState(comp);
+          } else if (comp?.type === 'slide-switch') {
+            this.toggleSwitchState(comp);
+          } else if (comp?.type === 'ir-remote') {
+            this.triggerIrCode(0x45);
           }
         }
         return;
@@ -1711,6 +2021,7 @@ export class WorkbenchController {
       const objs = this.pinWorldTargets.map((t) => t.obj);
       const pinHits = this.raycaster.intersectObjects(objs, false);
       if (pinHits.length > 0) {
+        if (this.guardNotRunning('cablear pines')) return;
         const hitObj = pinHits[0].object;
         const target = this.pinWorldTargets.find((t) => t.obj === hitObj);
         if (!target) return;
@@ -1889,6 +2200,7 @@ export class WorkbenchController {
 
     panel.querySelectorAll<HTMLButtonElement>('[data-place-comp]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (this.guardNotRunning('colocar piezas')) return;
         this.pushHistory();
         this.placeMissionComponent(btn.dataset.placeComp!, true);
       });
@@ -1906,6 +2218,7 @@ export class WorkbenchController {
 
     panel.querySelectorAll<HTMLButtonElement>('[data-wire-step]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (this.guardNotRunning('cablear el circuito')) return;
         const idx = Number(btn.dataset.wireStep);
         const step = m.steps[idx];
         if (!step) return;
@@ -1943,7 +2256,24 @@ export class WorkbenchController {
     if (!card) return;
 
     const interactive = this.components.filter((c) =>
-      ['button', 'potentiometer', 'ultrasonic', 'ldr', 'dht11', 'bme280', 'co2-sensor', 'optical-encoder'].includes(c.type)
+      [
+        'button',
+        'slide-switch',
+        'potentiometer',
+        'joystick',
+        'ultrasonic',
+        'ldr',
+        'dht11',
+        'bme280',
+        'co2-sensor',
+        'optical-encoder',
+        'pir-sensor',
+        'soil-moisture',
+        'gas-mq2',
+        'sound-sensor',
+        'ir-remote',
+        'rfid-rc522',
+      ].includes(c.type)
     );
     if (interactive.length === 0) {
       card.hidden = true;
@@ -1967,6 +2297,16 @@ export class WorkbenchController {
             </button>
           </div>`;
         wrap.querySelector('button')?.addEventListener('click', () => this.toggleButtonState(comp));
+      } else if (comp.type === 'slide-switch') {
+        const pos = Number(comp.state.position ?? 0);
+        wrap.innerHTML = `
+          <div class="tryit-row">
+            <span>${comp.name}</span>
+            <button type="button" class="wb-mini-btn ${pos === 1 ? 'is-active' : ''}">
+              ${pos === 1 ? 'Posición C2' : 'Posición C1'}
+            </button>
+          </div>`;
+        wrap.querySelector('button')?.addEventListener('click', () => this.toggleSwitchState(comp));
       } else if (comp.type === 'potentiometer') {
         const val = Number(comp.state.value ?? 512);
         wrap.innerHTML = `
@@ -1977,6 +2317,71 @@ export class WorkbenchController {
           comp.state.value = v;
           wrap.querySelector('.tryit-row span:last-child')!.textContent = `${v} / 1023`;
           this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          this.renderEnvControls();
+        });
+      } else if (comp.type === 'joystick') {
+        const x = Number(comp.state.x ?? 512);
+        const y = Number(comp.state.y ?? 512);
+        wrap.innerHTML = `
+          <div class="tryit-row"><span>Joystick X / Y</span><span>${x} · ${y}</span></div>
+          <input type="range" min="0" max="1023" value="${x}" data-joy="x" />
+          <input type="range" min="0" max="1023" value="${y}" data-joy="y" />`;
+        wrap.querySelectorAll<HTMLInputElement>('input').forEach((inp) => {
+          inp.addEventListener('input', () => {
+            comp.state[inp.dataset.joy!] = Number(inp.value);
+            this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+            this.renderEnvControls();
+            wrap.querySelector('.tryit-row span:last-child')!.textContent = `${comp.state.x} · ${comp.state.y}`;
+          });
+        });
+      } else if (comp.type === 'pir-sensor') {
+        const mot = Boolean(comp.state.motion);
+        wrap.innerHTML = `
+          <div class="tryit-row">
+            <span>Movimiento PIR</span>
+            <button type="button" class="wb-mini-btn ${mot ? 'is-active' : ''}">
+              ${mot ? 'Detectado (HIGH)' : 'Simular paso'}
+            </button>
+          </div>`;
+        wrap.querySelector('button')?.addEventListener('click', () => {
+          comp.state.motion = !comp.state.motion;
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          this.renderTryItCard();
+          this.renderEnvControls();
+        });
+      } else if (comp.type === 'ir-remote') {
+        wrap.innerHTML = `
+          <div class="tryit-row">
+            <span>Control IR</span>
+            <button type="button" class="wb-mini-btn wb-mini-btn-primary">Enviar PWR (0x45)</button>
+          </div>`;
+        wrap.querySelector('button')?.addEventListener('click', () => this.triggerIrCode(0x45));
+      } else if (comp.type === 'rfid-rc522') {
+        wrap.innerHTML = `
+          <div class="tryit-row">
+            <span>Tarjeta RFID</span>
+            <button type="button" class="wb-mini-btn ${this.rfidCardPresent ? 'is-active' : ''}">
+              ${this.rfidCardPresent ? 'Presente (Retirar)' : 'Acercar tarjeta'}
+            </button>
+          </div>`;
+        wrap.querySelector('button')?.addEventListener('click', () => {
+          this.rfidCardPresent = !this.rfidCardPresent;
+          comp.state.cardPresent = this.rfidCardPresent;
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          this.renderTryItCard();
+        });
+      } else if (comp.type === 'soil-moisture' || comp.type === 'gas-mq2' || comp.type === 'sound-sensor') {
+        const key = comp.type === 'soil-moisture' ? 'moisturePct' : comp.type === 'gas-mq2' ? 'gasLevel' : 'soundLevel';
+        const max = comp.type === 'gas-mq2' ? 1023 : 100;
+        const unit = comp.type === 'gas-mq2' ? 'ppm' : '%';
+        const v = Number(comp.state[key] ?? 40);
+        wrap.innerHTML = `
+          <div class="tryit-row"><span>${comp.name}</span><span>${v} ${unit}</span></div>
+          <input type="range" min="0" max="${max}" value="${v}" />`;
+        wrap.querySelector('input')?.addEventListener('input', (e) => {
+          const val = Number((e.target as HTMLInputElement).value);
+          comp.state[key] = val;
+          wrap.querySelector('.tryit-row span:last-child')!.textContent = `${val} ${unit}`;
           this.renderEnvControls();
         });
       } else if (comp.type === 'ultrasonic') {
@@ -2153,6 +2558,78 @@ export class WorkbenchController {
           card.querySelector('.env-card-head span:last-child')!.textContent = `${v} RPM`;
           this.renderTryItCard();
         });
+      } else if (comp.type === 'slide-switch') {
+        const pos = Number(comp.state.position ?? 0);
+        card.innerHTML = `
+          <div class="env-card-head">
+            <span>${comp.name}</span>
+            <button type="button" class="wb-mini-btn ${pos === 1 ? 'is-active' : ''}">${pos === 1 ? 'C2 activo' : 'C1 activo'}</button>
+          </div>`;
+        card.querySelector('button')?.addEventListener('click', () => this.toggleSwitchState(comp));
+      } else if (comp.type === 'pir-sensor') {
+        const mot = Boolean(comp.state.motion);
+        card.innerHTML = `
+          <div class="env-card-head">
+            <span>${comp.name}</span>
+            <button type="button" class="wb-mini-btn ${mot ? 'is-active' : ''}">${mot ? 'Detectado' : 'Sin movimiento'}</button>
+          </div>`;
+        card.querySelector('button')?.addEventListener('click', () => {
+          comp.state.motion = !comp.state.motion;
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          this.renderEnvControls();
+          this.renderTryItCard();
+        });
+      } else if (comp.type === 'joystick') {
+        const x = Number(comp.state.x ?? 512);
+        const y = Number(comp.state.y ?? 512);
+        card.innerHTML = `
+          <div class="env-card-head"><span>${comp.name}</span><span>X:${x} Y:${y}</span></div>
+          <label><span>Eje X (VRX)</span><span>${x}</span></label>
+          <input type="range" min="0" max="1023" value="${x}" data-joy="x" />
+          <label><span>Eje Y (VRY)</span><span>${y}</span></label>
+          <input type="range" min="0" max="1023" value="${y}" data-joy="y" />`;
+        card.querySelectorAll<HTMLInputElement>('input').forEach((inp) => {
+          inp.addEventListener('input', () => {
+            comp.state[inp.dataset.joy!] = Number(inp.value);
+            this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+            this.renderEnvControls();
+            this.renderTryItCard();
+          });
+        });
+      } else if (comp.type === 'soil-moisture' || comp.type === 'gas-mq2' || comp.type === 'sound-sensor') {
+        const key = comp.type === 'soil-moisture' ? 'moisturePct' : comp.type === 'gas-mq2' ? 'gasLevel' : 'soundLevel';
+        const max = comp.type === 'gas-mq2' ? 1023 : 100;
+        const unit = comp.type === 'gas-mq2' ? 'ppm' : '%';
+        const v = Number(comp.state[key] ?? 40);
+        card.innerHTML = `
+          <div class="env-card-head"><span>${comp.name}</span><span>${v} ${unit}</span></div>
+          <input type="range" min="0" max="${max}" value="${v}" />`;
+        card.querySelector('input')?.addEventListener('input', (e) => {
+          const val = Number((e.target as HTMLInputElement).value);
+          comp.state[key] = val;
+          card.querySelector('.env-card-head span:last-child')!.textContent = `${val} ${unit}`;
+          this.renderTryItCard();
+        });
+      } else if (comp.type === 'ir-remote') {
+        card.innerHTML = `
+          <div class="env-card-head">
+            <span>${comp.name}</span>
+            <button type="button" class="wb-mini-btn wb-mini-btn-primary">Enviar comando 0x45</button>
+          </div>`;
+        card.querySelector('button')?.addEventListener('click', () => this.triggerIrCode(0x45));
+      } else if (comp.type === 'rfid-rc522') {
+        card.innerHTML = `
+          <div class="env-card-head">
+            <span>${comp.name}</span>
+            <button type="button" class="wb-mini-btn ${this.rfidCardPresent ? 'is-active' : ''}">${this.rfidCardPresent ? 'Retirar tarjeta' : 'Acercar tarjeta'}</button>
+          </div>`;
+        card.querySelector('button')?.addEventListener('click', () => {
+          this.rfidCardPresent = !this.rfidCardPresent;
+          comp.state.cardPresent = this.rfidCardPresent;
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          this.renderEnvControls();
+          this.renderTryItCard();
+        });
       } else {
         card.innerHTML = `<div class="env-card-head"><span>${comp.name}</span><span class="placed-list-chip">Clic en 3D para editar</span></div>`;
       }
@@ -2201,6 +2678,14 @@ export class WorkbenchController {
 
     this.pinStates.clear();
     this.isRunning = true;
+    this.stepperAngleDeg = 0;
+    document.getElementById('workbench-shell')?.classList.add('is-simulating');
+    const lockBtnIds = ['wb-place-all-btn', 'wb-autowire-btn', 'wb-clear-wires-btn', 'wb-toggle-bb-btn', 'wb-reset-bench-btn', 'wb-load-json-btn'];
+    lockBtnIds.forEach((id) => {
+      const el = document.getElementById(id) as HTMLButtonElement | null;
+      if (el) el.disabled = true;
+    });
+
     const runBtn = document.getElementById('wb-run-btn')!;
     runBtn.classList.remove('is-ready');
     runBtn.classList.add('is-running');
@@ -2209,7 +2694,7 @@ export class WorkbenchController {
     if (slot) setSlotIcon(slot, 'square');
 
     statusPill.className = 'wb-status-pill is-running';
-    statusText.textContent = `Simulando en ${this.boardSpec.name}`;
+    statusText.textContent = `Simulando (circuito bloqueado) · ${this.boardSpec.name}`;
 
     // Registrar progreso si el circuito de la misión está completo y seguro
     const m = this.currentMission;
@@ -2289,6 +2774,69 @@ export class WorkbenchController {
           }
         }
       },
+      onOledUpdate: (text) => {
+        if (!this.netlist) return;
+        for (const comp of this.components) {
+          if (comp.type !== 'oled-i2c') continue;
+          const pwr = this.netlist.checkPowerSupply(comp.uid, 'VCC', 'GND');
+          const i2c = this.netlist.checkI2CConnection(comp.uid, 'SDA', 'SCL');
+          if (pwr.vccVoltage && pwr.hasGnd && i2c.connected) {
+            comp.state.text = text;
+            this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          }
+        }
+      },
+      onMatrixUpdate: (rows) => {
+        for (const comp of this.components) {
+          if (comp.type !== 'led-matrix') continue;
+          comp.state.rows = rows.join(',');
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+        }
+      },
+      onSevenSegUpdate: (mask, active) => {
+        for (const comp of this.components) {
+          if (comp.type !== 'seven-seg') continue;
+          comp.state.mask = mask;
+          comp.state.active = active;
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+        }
+      },
+      onStepperStep: (deltaSteps, phaseMask) => {
+        this.stepperAngleDeg += deltaSteps * 1.8;
+        for (const comp of this.components) {
+          if (comp.type === 'stepper-28byj') {
+            comp.state.stepAngle = this.stepperAngleDeg;
+            this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          } else if (comp.type === 'uln2003-driver') {
+            comp.state.phaseMask = phaseMask;
+            this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+          }
+        }
+      },
+      onIrPoll: (pin) => {
+        if (this.lastIrCommand === null) return null;
+        for (const comp of this.components) {
+          if (comp.type !== 'ir-receiver' || !this.netlist) continue;
+          const sig = this.netlist.findBoardSignalPin(comp.uid, 'OUT');
+          const pwr = this.netlist.checkPowerSupply(comp.uid, 'VCC', 'GND');
+          if (sig.boardPinId === pin && pwr.vccVoltage && pwr.hasGnd) {
+            const cmd = this.lastIrCommand;
+            this.lastIrCommand = null;
+            return cmd;
+          }
+        }
+        return null;
+      },
+      onRfidCheck: () => ({
+        present: this.rfidCardPresent && this.components.some((c) => c.type === 'rfid-rc522'),
+        uid: [0x12, 0x34, 0xab, 0xcd],
+      }),
+      onSonarPing: (_trig, echo) => {
+        const comp = this.components.find(
+          (c) => c.type === 'ultrasonic' && this.netlist?.findBoardSignalPin(c.uid, 'ECHO').boardPinId === echo
+        );
+        return comp ? Number(comp.state.distanceCm ?? 45) : 0;
+      },
       onBmeRead: () => {
         const bme = this.components.find((c) => c.type === 'bme280');
         if (!bme || !this.netlist) {
@@ -2334,10 +2882,29 @@ export class WorkbenchController {
       statusPill.className = 'wb-status-pill is-error';
       statusText.textContent = 'Error en el código';
       errBox.hidden = false;
-      errBox.textContent =
+      const msg =
         err instanceof ArduinoCompileError
           ? `Línea ${err.line}: ${err.message}`
           : String(err?.message ?? err);
+      errBox.innerHTML = '';
+      const span = document.createElement('span');
+      span.textContent = msg;
+      errBox.appendChild(span);
+
+      if (err instanceof ArduinoCompileError && err.missingLibraryId) {
+        const libId = err.missingLibraryId;
+        const fixBtn = document.createElement('button');
+        fixBtn.type = 'button';
+        fixBtn.className = 'wb-mini-btn wb-mini-btn-primary';
+        fixBtn.style.alignSelf = 'flex-start';
+        fixBtn.textContent = 'Instalar en caché y reintentar';
+        fixBtn.addEventListener('click', () => {
+          installLibrary(libId);
+          this.renderLibraryDrawer();
+          this.startSimulation();
+        });
+        errBox.appendChild(fixBtn);
+      }
       audio.playError();
     }
   }
@@ -2347,6 +2914,13 @@ export class WorkbenchController {
     this.runtime?.stop();
     this.runtime = null;
     audio.stopTone();
+
+    document.getElementById('workbench-shell')?.classList.remove('is-simulating');
+    const lockBtnIds = ['wb-place-all-btn', 'wb-autowire-btn', 'wb-clear-wires-btn', 'wb-toggle-bb-btn', 'wb-reset-bench-btn', 'wb-load-json-btn'];
+    lockBtnIds.forEach((id) => {
+      const el = document.getElementById(id) as HTMLButtonElement | null;
+      if (el) el.disabled = false;
+    });
 
     const runBtn = document.getElementById('wb-run-btn');
     if (runBtn) {
@@ -2389,6 +2963,29 @@ export class WorkbenchController {
           return rpm > 0 && Math.floor(performance.now() / Math.max(20, 6000 / rpm)) % 2 === 0 ? 1 : 0;
         }
       }
+      if (comp.type === 'pir-sensor') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'OUT');
+        const pwr = this.netlist.checkPowerSupply(comp.uid, 'VCC', 'GND');
+        if (sig.boardPinId === pin && pwr.vccVoltage && pwr.hasGnd) {
+          return comp.state.motion ? 1 : 0;
+        }
+      }
+      if (comp.type === 'joystick') {
+        const sw = this.netlist.findBoardSignalPin(comp.uid, 'SW');
+        if (sw.boardPinId === pin) return comp.state.pressed ? 0 : 1;
+      }
+      if (comp.type === 'soil-moisture') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'DO');
+        if (sig.boardPinId === pin) return Number(comp.state.moisturePct ?? 45) < 30 ? 1 : 0;
+      }
+      if (comp.type === 'gas-mq2') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'DO');
+        if (sig.boardPinId === pin) return Number(comp.state.gasLevel ?? 180) > 450 ? 1 : 0;
+      }
+      if (comp.type === 'sound-sensor') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'DO');
+        if (sig.boardPinId === pin) return Number(comp.state.soundLevel ?? 25) > 60 ? 1 : 0;
+      }
     }
     return 0;
   }
@@ -2405,11 +3002,37 @@ export class WorkbenchController {
         }
       }
       if (comp.type === 'ldr') {
-        const sig = this.netlist.findBoardSignalPin(comp.uid, 'AO');
-        const pwr = this.netlist.checkPowerSupply(comp.uid, 'VCC', 'GND');
-        if (sig.boardPinId === pin && pwr.vccVoltage && pwr.hasGnd) {
+        // Modelo real de 2 patitas: detecta conexión al pin analógico en divisor de voltaje
+        const s1 = this.netlist.findBoardSignalPin(comp.uid, 'P1');
+        const s2 = this.netlist.findBoardSignalPin(comp.uid, 'P2');
+        const pwr1 = this.netlist.checkPowerSupply(comp.uid, 'P1', 'P2');
+        const pwr2 = this.netlist.checkPowerSupply(comp.uid, 'P2', 'P1');
+        if (
+          s1.boardPinId === pin ||
+          s2.boardPinId === pin ||
+          pwr1.vccVoltage ||
+          pwr2.vccVoltage
+        ) {
           return Math.round((Number(comp.state.lightPct ?? 60) / 100) * maxVal);
         }
+      }
+      if (comp.type === 'joystick') {
+        const sx = this.netlist.findBoardSignalPin(comp.uid, 'VRX');
+        const sy = this.netlist.findBoardSignalPin(comp.uid, 'VRY');
+        if (sx.boardPinId === pin) return Math.round((Number(comp.state.x ?? 512) / 1023) * maxVal);
+        if (sy.boardPinId === pin) return Math.round((Number(comp.state.y ?? 512) / 1023) * maxVal);
+      }
+      if (comp.type === 'soil-moisture') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'AO');
+        if (sig.boardPinId === pin) return Math.round((Number(comp.state.moisturePct ?? 45) / 100) * maxVal);
+      }
+      if (comp.type === 'gas-mq2') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'AO');
+        if (sig.boardPinId === pin) return Math.round((Number(comp.state.gasLevel ?? 180) / 1023) * maxVal);
+      }
+      if (comp.type === 'sound-sensor') {
+        const sig = this.netlist.findBoardSignalPin(comp.uid, 'AO');
+        if (sig.boardPinId === pin) return Math.round((Number(comp.state.soundLevel ?? 25) / 100) * maxVal);
       }
       if (comp.type === 'co2-sensor') {
         const sig = this.netlist.findBoardSignalPin(comp.uid, 'AO');
@@ -2442,8 +3065,13 @@ export class WorkbenchController {
     const builtinPin = this.boardId === 'uno' ? 'D13' : 'G2';
     const builtinVal = this.pinStates.get(builtinPin) ?? 0;
     if (this.builtBoard?.leds.builtin) {
-      (this.builtBoard.leds.builtin.material as THREE.MeshStandardMaterial).emissiveIntensity =
-        0.1 + builtinVal * 1.6;
+      const bm = this.builtBoard.leds.builtin.material as THREE.MeshStandardMaterial;
+      bm.emissiveIntensity = 0.12 + builtinVal * 2.4;
+      const glow = this.builtBoard.leds.builtin.userData?.glowSprite as THREE.Sprite | undefined;
+      if (glow) {
+        glow.visible = builtinVal > 0.05;
+        (glow.material as THREE.SpriteMaterial).opacity = builtinVal * 0.9;
+      }
     }
 
     for (const comp of this.components) {
@@ -2476,6 +3104,25 @@ export class WorkbenchController {
           comp.state.b = 0;
         }
         this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+      } else if (comp.type === 'dc-motor') {
+        const posPin = this.netlist.findBoardSignalPin(comp.uid, 'M_POS').boardPinId;
+        const pwr = this.netlist.checkPowerSupply(comp.uid, 'M_POS', 'M_NEG');
+        let spd = 0;
+        if (pwr.hasGnd) {
+          if (posPin) spd = this.pinStates.get(posPin) ?? 0;
+          else if (pwr.vccVoltage) spd = 1;
+        }
+        comp.state.speed = this.isRunning ? spd : 0;
+        this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+      } else if (comp.type === 'relay-5v') {
+        const inPin = this.netlist.findBoardSignalPin(comp.uid, 'IN').boardPinId;
+        const pwr = this.netlist.checkPowerSupply(comp.uid, 'VCC', 'GND');
+        const nextActive = Boolean(this.isRunning && pwr.vccVoltage && pwr.hasGnd && inPin && (this.pinStates.get(inPin) ?? 0) > 0.5);
+        if (nextActive !== Boolean(comp.state.active)) {
+          comp.state.active = nextActive;
+          audio.playSwitchClick();
+          this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
+        }
       } else if (comp.type === 'ultrasonic') {
         const pwr = this.netlist.checkPowerSupply(comp.uid, 'VCC', 'GND');
         comp.state.active = this.isRunning && Boolean(pwr.vccVoltage && pwr.hasGnd);
@@ -2487,7 +3134,14 @@ export class WorkbenchController {
   private animate = (): void => {
     this.rafId = requestAnimationFrame(this.animate);
     for (const comp of this.components) {
-      if (comp.type === 'optical-encoder' || comp.type === 'ultrasonic') {
+      if (
+        comp.type === 'optical-encoder' ||
+        comp.type === 'ultrasonic' ||
+        comp.type === 'buzzer' ||
+        comp.type === 'dc-motor' ||
+        comp.type === 'ir-remote' ||
+        comp.type === 'ir-receiver'
+      ) {
         this.builtComponents.get(comp.uid)?.updateVisual?.(comp.state, comp.props);
       } else if (comp.type === 'servo') {
         const target = Number(comp.state.targetAngle ?? comp.state.angle ?? 90);
@@ -2498,7 +3152,16 @@ export class WorkbenchController {
         }
       }
     }
+    if (this.cameraTweenTarget) {
+      this.camera.position.lerp(this.cameraTweenTarget.pos, 0.14);
+      this.controls.target.lerp(this.cameraTweenTarget.look, 0.14);
+      if (this.camera.position.distanceTo(this.cameraTweenTarget.pos) < 0.04) {
+        this.camera.position.copy(this.cameraTweenTarget.pos);
+        this.cameraTweenTarget = null;
+      }
+    }
     this.controls.update();
+    this.viewCube?.syncFromCamera();
     this.updateGuideBadgePositions();
     this.renderer.render(this.scene, this.camera);
   };

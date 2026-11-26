@@ -1,4 +1,5 @@
 import type { BoardId } from '../../types';
+import { findLibraryByHeader, getAllLibraryTypeNames, isLibraryInstalled } from './libraries';
 
 export interface SimHardwareBridge {
   boardId: BoardId;
@@ -17,15 +18,24 @@ export interface SimHardwareBridge {
   onSerialReadString?: () => string;
   onServoWrite?: (pin: string, angle: number) => void;
   onLcdUpdate?: (line0: string, line1: string, backlight: boolean) => void;
+  onOledUpdate?: (text: string) => void;
+  onMatrixUpdate?: (rows: number[]) => void;
+  onSevenSegUpdate?: (mask: number, active: boolean) => void;
+  onStepperStep?: (deltaSteps: number, phaseMask: number) => void;
+  onIrPoll?: (pin: string) => number | null;
+  onRfidCheck?: () => { present: boolean; uid: number[] };
+  onSonarPing?: (trigPin: string, echoPin: string) => number;
   onBmeRead?: () => { tempC: number; pressureHpa: number; humidity: number; altitudeM: number };
   onDhtRead?: (pin: string) => { tempC: number; humidity: number };
 }
 
 export class ArduinoCompileError extends Error {
   public line: number;
-  constructor(message: string, line = 1) {
+  public missingLibraryId?: string;
+  constructor(message: string, line = 1, missingLibraryId?: string) {
     super(message);
     this.line = line;
+    this.missingLibraryId = missingLibraryId;
   }
 }
 
@@ -35,14 +45,20 @@ interface Token {
   line: number;
 }
 
-function stripPreprocessorAndComments(src: string): { code: string; defines: Map<string, string>; includes: string[] } {
+function stripPreprocessorAndComments(src: string): {
+  code: string;
+  defines: Map<string, string>;
+  includes: Array<{ header: string; line: number }>;
+} {
   const defines = new Map<string, string>();
-  const includes: string[] = [];
+  const includes: Array<{ header: string; line: number }> = [];
   const lines = src.split(/\r?\n/);
   const outLines: string[] = [];
   let inBlockComment = false;
+  let lineIdx = 0;
 
   for (const rawLine of lines) {
+    lineIdx++;
     let line = '';
     let i = 0;
     let inString = false;
@@ -72,13 +88,24 @@ function stripPreprocessorAndComments(src: string): { code: string; defines: Map
 
     const trimmed = line.trim();
     if (trimmed.startsWith('#include')) {
-      includes.push(trimmed);
+      const incMatch = /^#include\s+[<"]([^>"]+)[>"]/.exec(trimmed);
+      if (incMatch) {
+        includes.push({ header: incMatch[1], line: lineIdx });
+      }
       outLines.push('');
       continue;
     }
     if (trimmed.startsWith('#define')) {
-      const m = /^#define\s+([A-Za-z_]\w*)\s+(.+)$/.exec(trimmed);
-      if (m) defines.set(m[1], m[2].trim());
+      const m = /^#define\s+([A-Za-z_]\w*)(?:\([^)]*\))?(?:\s+(.+))?$/.exec(trimmed);
+      if (m && m[2]) {
+        defines.set(m[1], m[2].trim());
+      } else if (m) {
+        defines.set(m[1], '1');
+      }
+      outLines.push('');
+      continue;
+    }
+    if (/^#(ifdef|ifndef|if|elif|else|endif|pragma|undef)\b/.test(trimmed)) {
       outLines.push('');
       continue;
     }
@@ -93,7 +120,11 @@ function tokenize(src: string, defines: Map<string, string>): Token[] {
   let i = 0;
   let line = 1;
 
-  const twoCharOps = new Set(['==', '!=', '<=', '>=', '&&', '||', '++', '--', '+=', '-=', '*=', '/=', '<<', '>>']);
+  const threeCharOps = new Set(['<<=', '>>=']);
+  const twoCharOps = new Set([
+    '==', '!=', '<=', '>=', '&&', '||', '++', '--', '+=', '-=', '*=', '/=', '%=',
+    '&=', '|=', '^=', '<<', '>>', '->', '::',
+  ]);
   const puncs = new Set(['(', ')', '{', '}', '[', ']', ';', ',', '.', ':']);
 
   while (i < src.length) {
@@ -114,7 +145,7 @@ function tokenize(src: string, defines: Map<string, string>): Token[] {
       while (i < src.length && src[i] !== '"') {
         if (src[i] === '\\' && i + 1 < src.length) {
           const esc = src[i + 1];
-          s += esc === 'n' ? '\n' : esc === 't' ? '\t' : esc;
+          s += esc === 'n' ? '\n' : esc === 'r' ? '\r' : esc === 't' ? '\t' : esc === '0' ? '\0' : esc;
           i += 2;
         } else {
           if (src[i] === '\n') line++;
@@ -129,8 +160,14 @@ function tokenize(src: string, defines: Map<string, string>): Token[] {
 
     if (ch === "'") {
       i++;
-      const c = src[i] ?? '';
-      i++;
+      let c = src[i] ?? '';
+      if (c === '\\' && i + 1 < src.length) {
+        const esc = src[i + 1];
+        c = esc === 'n' ? '\n' : esc === 't' ? '\t' : esc === '0' ? '\0' : esc;
+        i += 2;
+      } else {
+        i++;
+      }
       if (src[i] === "'") i++;
       tokens.push({ type: 'char', value: c, line });
       continue;
@@ -142,9 +179,23 @@ function tokenize(src: string, defines: Map<string, string>): Token[] {
         num = '0x';
         i += 2;
         while (i < src.length && /[0-9a-fA-F]/.test(src[i])) num += src[i++];
+      } else if (ch === '0' && (src[i + 1] === 'b' || src[i + 1] === 'B')) {
+        num = '0b';
+        i += 2;
+        while (i < src.length && /[01_]/.test(src[i])) {
+          if (src[i] !== '_') num += src[i];
+          i++;
+        }
       } else {
         while (i < src.length && /[\d.]/.test(src[i])) num += src[i++];
+        if ((src[i] === 'e' || src[i] === 'E') && /[+\-\d]/.test(src[i + 1] ?? '')) {
+          num += src[i++];
+          if (src[i] === '+' || src[i] === '-') num += src[i++];
+          while (i < src.length && /\d/.test(src[i])) num += src[i++];
+        }
       }
+      // Ignorar sufijos C++ tipo UL, L, U, f
+      while (i < src.length && /[uUlLfF]/.test(src[i])) i++;
       tokens.push({ type: 'num', value: num, line });
       continue;
     }
@@ -152,6 +203,13 @@ function tokenize(src: string, defines: Map<string, string>): Token[] {
     if (/[A-Za-z_]/.test(ch)) {
       let id = '';
       while (i < src.length && /[A-Za-z0-9_]/.test(src[i])) id += src[i++];
+
+      // Constantes binarias estilo Arduino: B01010101
+      if (/^B[01]{1,8}$/.test(id)) {
+        tokens.push({ type: 'num', value: `0b${id.slice(1)}`, line });
+        continue;
+      }
+
       if (defines.has(id)) {
         const sub = tokenize(defines.get(id)!, new Map());
         for (const t of sub) {
@@ -160,6 +218,13 @@ function tokenize(src: string, defines: Map<string, string>): Token[] {
       } else {
         tokens.push({ type: 'id', value: id, line });
       }
+      continue;
+    }
+
+    const three = src.slice(i, i + 3);
+    if (threeCharOps.has(three)) {
+      tokens.push({ type: 'op', value: three, line });
+      i += 3;
       continue;
     }
 
@@ -194,7 +259,9 @@ type Stmt =
   | { kind: 'var'; name: string; init?: Expr; isArray?: boolean; line: number }
   | { kind: 'expr'; expr: Expr; line: number }
   | { kind: 'if'; cond: Expr; then: Stmt; elseStmt?: Stmt; line: number }
+  | { kind: 'switch'; expr: Expr; cases: Array<{ test: Expr | null; body: Stmt[] }>; line: number }
   | { kind: 'while'; cond: Expr; body: Stmt; line: number }
+  | { kind: 'dowhile'; body: Stmt; cond: Expr; line: number }
   | { kind: 'for'; init?: Stmt; cond?: Expr; step?: Expr; body: Stmt; line: number }
   | { kind: 'return'; expr?: Expr; line: number }
   | { kind: 'break'; line: number }
@@ -208,6 +275,7 @@ type Expr =
   | { kind: 'index'; obj: Expr; index: Expr }
   | { kind: 'member'; obj: Expr; prop: string }
   | { kind: 'call'; callee: Expr; args: Expr[]; line: number }
+  | { kind: 'cast'; targetType: string; arg: Expr }
   | { kind: 'unary'; op: string; arg: Expr; prefix: boolean }
   | { kind: 'binary'; op: string; left: Expr; right: Expr }
   | { kind: 'assign'; op: string; left: Expr; right: Expr }
@@ -219,11 +287,15 @@ interface FuncDecl {
   body: Stmt;
 }
 
-const TYPE_KEYWORDS = new Set([
-  'void', 'int', 'long', 'unsigned', 'short', 'byte', 'float', 'double',
-  'bool', 'boolean', 'char', 'String', 'uint8_t', 'uint16_t', 'uint32_t',
+const BASE_TYPES = new Set([
+  'void', 'int', 'long', 'unsigned', 'signed', 'short', 'byte', 'float', 'double',
+  'bool', 'boolean', 'char', 'String', 'word', 'size_t',
+  'int8_t', 'int16_t', 'int32_t', 'uint8_t', 'uint16_t', 'uint32_t',
   'Servo', 'LiquidCrystal_I2C', 'Adafruit_BME280', 'Adafruit_BMP280', 'DHT',
+  ...getAllLibraryTypeNames(),
 ]);
+
+const MODIFIER_KEYWORDS = new Set(['const', 'static', 'volatile', 'unsigned', 'signed', 'PROGMEM']);
 
 class Parser {
   private tokens: Token[];
@@ -257,18 +329,25 @@ class Parser {
     return this.next();
   }
 
-  private isTypeStart(): boolean {
-    const t = this.peek();
+  private isTypeStart(offset = 0): boolean {
+    const t = this.peek(offset);
     if (t.type !== 'id') return false;
-    if (t.value === 'const' || t.value === 'static') return true;
-    return TYPE_KEYWORDS.has(t.value);
+    return MODIFIER_KEYWORDS.has(t.value) || BASE_TYPES.has(t.value);
   }
 
   private consumeType(): string {
-    while (this.peek().type === 'id' && (this.peek().value === 'const' || this.peek().value === 'static' || this.peek().value === 'unsigned')) {
+    while (this.peek().type === 'id' && MODIFIER_KEYWORDS.has(this.peek().value)) {
       this.next();
     }
     const base = this.next();
+    // Soportar "long long" o "long int"
+    if (base.value === 'long' && (this.peek().value === 'long' || this.peek().value === 'int')) {
+      this.next();
+    }
+    // Ignorar punteros * o referencias &
+    while (this.peek().type === 'op' && (this.peek().value === '*' || this.peek().value === '&')) {
+      this.next();
+    }
     return base.value;
   }
 
@@ -277,6 +356,31 @@ class Parser {
     const funcs = new Map<string, FuncDecl>();
 
     while (this.peek().type !== 'eof') {
+      if (this.match('punc', ';')) continue;
+
+      // Soportar enum { A, B, C };
+      if (this.peek().type === 'id' && this.peek().value === 'enum') {
+        this.next();
+        if (this.peek().type === 'id') this.next();
+        this.expect('punc', '{');
+        let idx = 0;
+        while (!this.match('punc', '}')) {
+          if (this.peek().type === 'eof') break;
+          const id = this.next();
+          let init: Expr = { kind: 'lit', value: idx };
+          if (this.match('op', '=')) {
+            init = this.parseExpr();
+          }
+          if (id.type === 'id') {
+            globals.push({ kind: 'var', name: id.value, init, line: id.line });
+          }
+          idx++;
+          this.match('punc', ',');
+        }
+        this.match('punc', ';');
+        continue;
+      }
+
       if (this.isTypeStart()) {
         const typeName = this.consumeType();
         const nameTok = this.peek();
@@ -285,10 +389,30 @@ class Parser {
         }
         const name = this.next().value;
 
-        // Function declaration: type name(...) { ... }
         if (this.match('punc', '(')) {
-          // Check if it's an object constructor like LiquidCrystal_I2C lcd(0x27, 16, 2); or DHT dht(4, DHT11);
-          if (typeName === 'LiquidCrystal_I2C' || typeName === 'Servo' || typeName === 'Adafruit_BME280' || typeName === 'DHT') {
+          // Constructor de objeto global: ej. Stepper motor(2048, 8, 10, 9, 11);
+          const isObjectType =
+            typeName !== 'void' &&
+            typeName !== 'int' &&
+            typeName !== 'float' &&
+            typeName !== 'double' &&
+            typeName !== 'long' &&
+            typeName !== 'bool' &&
+            typeName !== 'boolean' &&
+            typeName !== 'char' &&
+            typeName !== 'byte' &&
+            typeName !== 'String' &&
+            typeName !== 'uint8_t' &&
+            typeName !== 'uint16_t' &&
+            typeName !== 'uint32_t';
+
+          // Lookahead para distinguir prototipo/función vs constructor de objeto
+          const isFuncSignature =
+            !isObjectType ||
+            this.peek().value === ')' && this.peek(1).value === '{' ||
+            this.isTypeStart(0);
+
+          if (!isFuncSignature) {
             const args: Expr[] = [];
             if (!this.match('punc', ')')) {
               do {
@@ -312,16 +436,25 @@ class Parser {
               if (this.isTypeStart()) this.consumeType();
               if (this.peek().type === 'id') params.push(this.next().value);
               if (this.match('punc', '[')) this.match('punc', ']');
+              if (this.match('op', '=')) this.parseExpr();
             } while (this.match('punc', ','));
             this.expect('punc', ')');
           }
+
+          // Prototipo adelantado: void miFuncion(int x);
+          if (this.match('punc', ';')) {
+            continue;
+          }
+
           const body = this.parseBlock();
           funcs.set(name, { name, params, body });
           continue;
         }
 
-        // Global variable declaration
-        globals.push(this.finishVarDecl(typeName, name, nameTok.line));
+        // Declaraciones múltiples globales (int a = 1, b = 2;)
+        for (const decl of this.finishMultiVarDecl(typeName, name, nameTok.line)) {
+          globals.push(decl);
+        }
         continue;
       }
 
@@ -331,7 +464,7 @@ class Parser {
     return { globals, funcs };
   }
 
-  private finishVarDecl(typeName: string, name: string, line: number): Stmt {
+  private finishSingleVarPart(typeName: string, name: string, line: number): Stmt {
     let isArray = false;
     if (this.match('punc', '[')) {
       isArray = true;
@@ -339,26 +472,55 @@ class Parser {
         this.parseExpr();
         this.expect('punc', ']');
       }
+      if (this.match('punc', '[')) {
+        if (!this.match('punc', ']')) {
+          this.parseExpr();
+          this.expect('punc', ']');
+        }
+      }
     }
     let init: Expr | undefined;
     if (this.match('op', '=')) {
       if (this.match('punc', '{')) {
-        const items: Expr[] = [];
-        if (!this.match('punc', '}')) {
-          do {
-            items.push(this.parseExpr());
-          } while (this.match('punc', ','));
-          this.expect('punc', '}');
-        }
-        init = { kind: 'array', items };
+        init = this.parseBraceArray();
       } else {
         init = this.parseExpr();
       }
-    } else if (typeName === 'Servo' || typeName === 'Adafruit_BME280' || typeName === 'Adafruit_BMP280') {
+    } else if (BASE_TYPES.has(typeName) && typeName[0] === typeName[0].toUpperCase() && typeName !== 'String') {
       init = { kind: 'call', callee: { kind: 'var', name: `__ctor_${typeName}` }, args: [], line };
     }
-    this.expect('punc', ';', 'Falta ";" al final de la declaración de variable');
     return { kind: 'var', name, init, isArray, line };
+  }
+
+  private parseBraceArray(): Expr {
+    const items: Expr[] = [];
+    if (!this.match('punc', '}')) {
+      do {
+        if (this.match('punc', '{')) {
+          items.push(this.parseBraceArray());
+        } else {
+          items.push(this.parseExpr());
+        }
+      } while (this.match('punc', ','));
+      this.expect('punc', '}');
+    }
+    return { kind: 'array', items };
+  }
+
+  private finishMultiVarDecl(typeName: string, firstName: string, line: number): Stmt[] {
+    const decls: Stmt[] = [this.finishSingleVarPart(typeName, firstName, line)];
+    while (this.match('punc', ',')) {
+      while (this.peek().type === 'op' && (this.peek().value === '*' || this.peek().value === '&')) {
+        this.next();
+      }
+      const nextTok = this.next();
+      if (nextTok.type !== 'id') {
+        throw new ArduinoCompileError(`Nombre de variable inválido "${nextTok.value}"`, nextTok.line);
+      }
+      decls.push(this.finishSingleVarPart(typeName, nextTok.value, nextTok.line));
+    }
+    this.expect('punc', ';', 'Falta ";" al final de la declaración de variable');
+    return decls;
   }
 
   private parseBlock(): Stmt {
@@ -392,6 +554,47 @@ class Parser {
       return { kind: 'if', cond, then, elseStmt, line: t.line };
     }
 
+    if (t.type === 'id' && t.value === 'switch') {
+      this.next();
+      this.expect('punc', '(');
+      const expr = this.parseExpr();
+      this.expect('punc', ')');
+      this.expect('punc', '{');
+      const cases: Array<{ test: Expr | null; body: Stmt[] }> = [];
+      while (!this.match('punc', '}')) {
+        if (this.peek().type === 'eof') {
+          throw new ArduinoCompileError('Falta llave de cierre "}" en switch', t.line);
+        }
+        if (this.peek().type === 'id' && this.peek().value === 'case') {
+          this.next();
+          const test = this.parseExpr();
+          this.expect('punc', ':');
+          const body: Stmt[] = [];
+          while (
+            !(this.peek().type === 'punc' && this.peek().value === '}') &&
+            !(this.peek().type === 'id' && (this.peek().value === 'case' || this.peek().value === 'default'))
+          ) {
+            body.push(this.parseStmt());
+          }
+          cases.push({ test, body });
+        } else if (this.peek().type === 'id' && this.peek().value === 'default') {
+          this.next();
+          this.expect('punc', ':');
+          const body: Stmt[] = [];
+          while (
+            !(this.peek().type === 'punc' && this.peek().value === '}') &&
+            !(this.peek().type === 'id' && (this.peek().value === 'case' || this.peek().value === 'default'))
+          ) {
+            body.push(this.parseStmt());
+          }
+          cases.push({ test: null, body });
+        } else {
+          this.next();
+        }
+      }
+      return { kind: 'switch', expr, cases, line: t.line };
+    }
+
     if (t.type === 'id' && t.value === 'while') {
       this.next();
       this.expect('punc', '(');
@@ -399,6 +602,17 @@ class Parser {
       this.expect('punc', ')');
       const body = this.parseStmt();
       return { kind: 'while', cond, body, line: t.line };
+    }
+
+    if (t.type === 'id' && t.value === 'do') {
+      this.next();
+      const body = this.parseStmt();
+      this.expect('id', 'while', 'Se esperaba "while" después del bloque do { ... }');
+      this.expect('punc', '(');
+      const cond = this.parseExpr();
+      this.expect('punc', ')');
+      this.expect('punc', ';');
+      return { kind: 'dowhile', body, cond, line: t.line };
     }
 
     if (t.type === 'id' && t.value === 'for') {
@@ -409,7 +623,8 @@ class Parser {
         if (this.isTypeStart()) {
           const tn = this.consumeType();
           const vname = this.next();
-          init = this.finishVarDecl(tn, vname.value, vname.line);
+          const decls = this.finishMultiVarDecl(tn, vname.value, vname.line);
+          init = decls.length === 1 ? decls[0] : { kind: 'block', body: decls };
         } else {
           init = { kind: 'expr', expr: this.parseExpr(), line: t.line };
           this.expect('punc', ';');
@@ -470,7 +685,8 @@ class Parser {
           line: vname.line,
         };
       }
-      return this.finishVarDecl(tn, vname.value, vname.line);
+      const decls = this.finishMultiVarDecl(tn, vname.value, vname.line);
+      return decls.length === 1 ? decls[0] : { kind: 'block', body: decls };
     }
 
     const expr = this.parseExpr();
@@ -485,7 +701,10 @@ class Parser {
   private parseAssign(): Expr {
     const left = this.parseTernary();
     const t = this.peek();
-    if (t.type === 'op' && ['=', '+=', '-=', '*=', '/='].includes(t.value)) {
+    if (
+      t.type === 'op' &&
+      ['=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>='].includes(t.value)
+    ) {
       this.next();
       const right = this.parseAssign();
       return { kind: 'assign', op: t.value, left, right };
@@ -513,9 +732,33 @@ class Parser {
   }
 
   private parseAnd(): Expr {
-    let left = this.parseEq();
+    let left = this.parseBitOr();
     while (this.match('op', '&&')) {
-      left = { kind: 'binary', op: '&&', left, right: this.parseEq() };
+      left = { kind: 'binary', op: '&&', left, right: this.parseBitOr() };
+    }
+    return left;
+  }
+
+  private parseBitOr(): Expr {
+    let left = this.parseBitXor();
+    while (this.match('op', '|')) {
+      left = { kind: 'binary', op: '|', left, right: this.parseBitXor() };
+    }
+    return left;
+  }
+
+  private parseBitXor(): Expr {
+    let left = this.parseBitAnd();
+    while (this.match('op', '^')) {
+      left = { kind: 'binary', op: '^', left, right: this.parseBitAnd() };
+    }
+    return left;
+  }
+
+  private parseBitAnd(): Expr {
+    let left = this.parseEq();
+    while (this.match('op', '&')) {
+      left = { kind: 'binary', op: '&', left, right: this.parseEq() };
     }
     return left;
   }
@@ -530,8 +773,17 @@ class Parser {
   }
 
   private parseRel(): Expr {
-    let left = this.parseAdd();
+    let left = this.parseShift();
     while (this.peek().type === 'op' && ['<', '<=', '>', '>='].includes(this.peek().value)) {
+      const op = this.next().value;
+      left = { kind: 'binary', op, left, right: this.parseShift() };
+    }
+    return left;
+  }
+
+  private parseShift(): Expr {
+    let left = this.parseAdd();
+    while (this.peek().type === 'op' && (this.peek().value === '<<' || this.peek().value === '>>')) {
       const op = this.next().value;
       left = { kind: 'binary', op, left, right: this.parseAdd() };
     }
@@ -558,9 +810,20 @@ class Parser {
 
   private parseUnary(): Expr {
     const t = this.peek();
-    if (t.type === 'op' && ['!', '-', '+', '++', '--'].includes(t.value)) {
+    if (t.type === 'op' && ['!', '~', '-', '+', '++', '--'].includes(t.value)) {
       this.next();
       return { kind: 'unary', op: t.value, arg: this.parseUnary(), prefix: true };
+    }
+    // Detectar cast estilo C: (float)x, (int)y, (unsigned long)z
+    if (t.type === 'punc' && t.value === '(' && this.isTypeStart(1)) {
+      const saved = this.pos;
+      this.next(); // '('
+      const targetType = this.consumeType();
+      if (this.match('punc', ')')) {
+        const arg = this.parseUnary();
+        return { kind: 'cast', targetType, arg };
+      }
+      this.pos = saved;
     }
     return this.parsePostfix();
   }
@@ -578,7 +841,7 @@ class Parser {
           this.expect('punc', ')');
         }
         expr = { kind: 'call', callee: expr, args, line };
-      } else if (this.match('punc', '.')) {
+      } else if (this.match('punc', '.') || this.match('op', '->') || this.match('op', '::')) {
         const prop = this.next();
         expr = { kind: 'member', obj: expr, prop: prop.value };
       } else if (this.match('punc', '[')) {
@@ -599,7 +862,9 @@ class Parser {
     const t = this.peek();
     if (t.type === 'num') {
       this.next();
-      return { kind: 'lit', value: t.value.startsWith('0x') ? parseInt(t.value, 16) : Number(t.value) };
+      if (t.value.startsWith('0x')) return { kind: 'lit', value: parseInt(t.value, 16) };
+      if (t.value.startsWith('0b')) return { kind: 'lit', value: parseInt(t.value.slice(2), 2) };
+      return { kind: 'lit', value: Number(t.value) };
     }
     if (t.type === 'str') {
       this.next();
@@ -610,6 +875,15 @@ class Parser {
       return { kind: 'lit', value: t.value.charCodeAt(0) };
     }
     if (t.type === 'id') {
+      if (t.value === 'sizeof') {
+        this.next();
+        if (this.match('punc', '(')) {
+          if (this.isTypeStart()) this.consumeType();
+          else this.parseExpr();
+          this.expect('punc', ')');
+        }
+        return { kind: 'lit', value: 4 };
+      }
       this.next();
       if (t.value === 'true') return { kind: 'lit', value: true };
       if (t.value === 'false') return { kind: 'lit', value: false };
@@ -646,6 +920,28 @@ function normalizePinArg(raw: any, boardId: BoardId): string {
   return `G${n}`;
 }
 
+function makeArduinoString(str: string): any {
+  const obj: Record<string, any> = {
+    __str: String(str),
+    toString: () => obj.__str,
+    valueOf: () => obj.__str,
+    length: () => obj.__str.length,
+    toInt: () => parseInt(obj.__str, 10) || 0,
+    toFloat: () => parseFloat(obj.__str) || 0,
+    trim: () => makeArduinoString(obj.__str.trim()),
+    toUpperCase: () => makeArduinoString(obj.__str.toUpperCase()),
+    toLowerCase: () => makeArduinoString(obj.__str.toLowerCase()),
+    substring: (a: number, b?: number) => makeArduinoString(obj.__str.substring(a, b)),
+    indexOf: (sub: any) => obj.__str.indexOf(String(sub)),
+    startsWith: (sub: any) => obj.__str.startsWith(String(sub)),
+    endsWith: (sub: any) => obj.__str.endsWith(String(sub)),
+    equals: (other: any) => obj.__str === String(other),
+    charAt: (i: number) => obj.__str.charCodeAt(i) || 0,
+    c_str: () => obj.__str,
+  };
+  return obj;
+}
+
 export class ArduinoRuntime {
   private bridge: SimHardwareBridge;
   private funcs = new Map<string, FuncDecl>();
@@ -654,13 +950,27 @@ export class ArduinoRuntime {
   private abortCtrl: AbortController | null = null;
   private startMs = 0;
   private interrupts = new Map<string, { fnName: string; lastVal: 0 | 1 }>();
+  private eepromMem = new Uint8Array(512);
+  private ledcPinMap = new Map<number, string>();
 
   constructor(bridge: SimHardwareBridge) {
     this.bridge = bridge;
   }
 
   public compile(source: string): void {
-    const { code, defines } = stripPreprocessorAndComments(source);
+    const { code, defines, includes } = stripPreprocessorAndComments(source);
+
+    for (const inc of includes) {
+      const lib = findLibraryByHeader(inc.header);
+      if (lib && !isLibraryInstalled(lib.id)) {
+        throw new ArduinoCompileError(
+          `La librería <${lib.header}> no está instalada en caché. Instálala desde el botón "Librerías".`,
+          inc.line,
+          lib.id
+        );
+      }
+    }
+
     const tokens = tokenize(code, defines);
     const parser = new Parser(tokens);
     const { globals, funcs } = parser.parseProgram();
@@ -683,6 +993,18 @@ export class ArduinoRuntime {
     }
   }
 
+  private formatSerialArg(v: any, fmt?: number): string {
+    if (v === undefined || v === null) return '';
+    if (typeof v === 'object' && v?.__str !== undefined) return v.__str;
+    if (typeof v === 'number' && fmt !== undefined) {
+      if (fmt === 16) return Math.trunc(v).toString(16).toUpperCase();
+      if (fmt === 2) return Math.trunc(v).toString(2);
+      if (fmt === 8) return Math.trunc(v).toString(8);
+      if (!Number.isInteger(v) || fmt <= 6) return Number(v).toFixed(Math.max(0, Math.min(6, fmt)));
+    }
+    return String(v);
+  }
+
   private initBuiltins(scope: Map<string, any>): void {
     const isUno = this.bridge.boardId === 'uno';
     scope.set('HIGH', 1);
@@ -693,7 +1015,21 @@ export class ArduinoRuntime {
     scope.set('RISING', 'RISING');
     scope.set('FALLING', 'FALLING');
     scope.set('CHANGE', 'CHANGE');
+    scope.set('DEC', 10);
+    scope.set('HEX', 16);
+    scope.set('BIN', 2);
+    scope.set('OCT', 8);
+    scope.set('PI', Math.PI);
     scope.set('DHT11', 11);
+    scope.set('DHT22', 22);
+    scope.set('COMMON_CATHODE', 0);
+    scope.set('COMMON_ANODE', 1);
+    scope.set('SSD1306_SWITCHCAPVCC', 0x02);
+    scope.set('WHITE', 1);
+    scope.set('BLACK', 0);
+    scope.set('WL_CONNECTED', 3);
+    scope.set('MSBFIRST', 1);
+    scope.set('LSBFIRST', 0);
     scope.set('LED_BUILTIN', isUno ? 13 : 2);
     scope.set('A0', isUno ? 'A0' : 'G36');
     scope.set('A1', isUno ? 'A1' : 'G39');
@@ -704,15 +1040,94 @@ export class ArduinoRuntime {
 
     scope.set('Serial', {
       begin: (baud: number) => this.bridge.onSerialBegin?.(Number(baud) || 9600),
-      print: (v: any) => this.bridge.onSerialPrint?.(String(v ?? ''), false),
-      println: (v: any = '') => this.bridge.onSerialPrint?.(String(v), true),
+      print: (v: any, fmt?: number) => this.bridge.onSerialPrint?.(this.formatSerialArg(v, fmt), false),
+      println: (v: any = '', fmt?: number) => this.bridge.onSerialPrint?.(this.formatSerialArg(v, fmt), true),
+      write: (v: any) =>
+        this.bridge.onSerialPrint?.(typeof v === 'number' ? String.fromCharCode(v) : String(v), false),
       available: () => this.bridge.onSerialAvailable?.() ?? 0,
-      read: () => this.bridge.onSerialRead?.() ?? -1,
-      readString: () => this.bridge.onSerialReadString?.() ?? '',
+      read: () => {
+        const s = this.bridge.onSerialReadString?.() ?? '';
+        return s ? s.charCodeAt(0) : -1;
+      },
+      readString: () => makeArduinoString(this.bridge.onSerialReadString?.() ?? ''),
+      readStringUntil: () => makeArduinoString(this.bridge.onSerialReadString?.() ?? ''),
+      parseInt: () => parseInt(this.bridge.onSerialReadString?.() ?? '0', 10) || 0,
+      parseFloat: () => parseFloat(this.bridge.onSerialReadString?.() ?? '0') || 0,
+      flush: () => {},
     });
 
     scope.set('Wire', {
       begin: () => {},
+      beginTransmission: () => {},
+      write: () => 1,
+      endTransmission: () => 0,
+      requestFrom: () => 0,
+      available: () => 0,
+      read: () => 0,
+    });
+
+    scope.set('SPI', {
+      begin: () => {},
+      transfer: (v: number) => v & 0xff,
+      beginTransaction: () => {},
+      endTransaction: () => {},
+    });
+
+    scope.set('EEPROM', {
+      read: (addr: number) => this.eepromMem[Math.max(0, Math.min(511, Number(addr) || 0))],
+      write: (addr: number, val: number) => {
+        this.eepromMem[Math.max(0, Math.min(511, Number(addr) || 0))] = Number(val) & 0xff;
+      },
+      update: (addr: number, val: number) => {
+        this.eepromMem[Math.max(0, Math.min(511, Number(addr) || 0))] = Number(val) & 0xff;
+      },
+      length: () => this.eepromMem.length,
+    });
+
+    scope.set('WiFi', {
+      begin: () => 3,
+      status: () => 3,
+      localIP: () => '192.168.1.42',
+    });
+
+    // IRremote 4.x objeto global IrReceiver
+    let irPin = 'D11';
+    let lastIrCmd = 0;
+    const irReceiverObj = {
+      decodedIRData: { command: 0, address: 0, protocol: 'NEC' },
+      begin: (pin: any) => {
+        irPin = normalizePinArg(pin ?? 11, this.bridge.boardId);
+      },
+      decode: () => {
+        const code = this.bridge.onIrPoll?.(irPin) ?? null;
+        if (code !== null) {
+          lastIrCmd = code;
+          irReceiverObj.decodedIRData.command = code;
+          return true;
+        }
+        return false;
+      },
+      resume: () => {
+        lastIrCmd = 0;
+      },
+    };
+    scope.set('IrReceiver', irReceiverObj);
+    scope.set('__ctor_IRrecv', (pin: any) => {
+      irPin = normalizePinArg(pin ?? 11, this.bridge.boardId);
+      return {
+        enableIRIn: () => {},
+        decode: (res?: any) => {
+          const code = this.bridge.onIrPoll?.(irPin) ?? null;
+          if (code !== null) {
+            if (res && typeof res === 'object') res.value = code;
+            return true;
+          }
+          return false;
+        },
+        resume: () => {
+          void lastIrCmd;
+        },
+      };
     });
 
     scope.set('__ctor_Servo', () => {
@@ -730,7 +1145,28 @@ export class ArduinoRuntime {
       };
     });
 
-    scope.set('__ctor_LiquidCrystal_I2C', () => {
+    scope.set('__ctor_Stepper', () => {
+      let phase = 0;
+      return {
+        setSpeed: () => {},
+        step: (steps: number) => {
+          const n = Math.trunc(Number(steps) || 0);
+          const dir = n >= 0 ? 1 : -1;
+          phase = (phase + (dir > 0 ? 1 : 3)) % 4;
+          const phaseMask = 1 << phase;
+          this.bridge.onStepperStep?.(n, phaseMask);
+        },
+      };
+    });
+    scope.set('__ctor_AccelStepper', () => ({
+      setMaxSpeed: () => {},
+      setAcceleration: () => {},
+      moveTo: () => {},
+      run: () => true,
+      step: () => this.bridge.onStepperStep?.(1, 1),
+    }));
+
+    const makeLcdObj = () => {
       let lines = ['', ''];
       let cursorRow = 0;
       let cursorCol = 0;
@@ -758,7 +1194,7 @@ export class ArduinoRuntime {
           cursorRow = Math.max(0, Math.min(1, Number(row) || 0));
         },
         print: (val: any) => {
-          const text = String(val ?? '');
+          const text = this.formatSerialArg(val);
           const base = lines[cursorRow].padEnd(16, ' ').split('');
           for (let i = 0; i < text.length && cursorCol + i < 16; i++) {
             base[cursorCol + i] = text[i];
@@ -768,7 +1204,139 @@ export class ArduinoRuntime {
           push();
         },
       };
+    };
+    scope.set('__ctor_LiquidCrystal_I2C', makeLcdObj);
+    scope.set('__ctor_LiquidCrystal', makeLcdObj);
+
+    scope.set('__ctor_Adafruit_SSD1306', () => {
+      let bufLines: string[] = [];
+      let curLine = '';
+      return {
+        begin: () => true,
+        clearDisplay: () => {
+          bufLines = [];
+          curLine = '';
+        },
+        setTextSize: () => {},
+        setTextColor: () => {},
+        setCursor: () => {},
+        drawRect: () => {},
+        fillRect: () => {},
+        drawCircle: () => {},
+        print: (v: any) => {
+          curLine += this.formatSerialArg(v);
+        },
+        println: (v: any = '') => {
+          bufLines.push(curLine + this.formatSerialArg(v));
+          curLine = '';
+        },
+        display: () => {
+          const all = [...bufLines, ...(curLine ? [curLine] : [])];
+          this.bridge.onOledUpdate?.(all.join('\n'));
+        },
+      };
     });
+
+    scope.set('__ctor_LedControl', () => {
+      const rows = [0, 0, 0, 0, 0, 0, 0, 0];
+      const sync = () => this.bridge.onMatrixUpdate?.([...rows]);
+      return {
+        shutdown: () => {},
+        setIntensity: () => {},
+        clearDisplay: () => {
+          rows.fill(0);
+          sync();
+        },
+        setRow: (_addr: number, row: number, val: number) => {
+          if (row >= 0 && row < 8) rows[row] = Number(val) & 0xff;
+          sync();
+        },
+        setLed: (_addr: number, row: number, col: number, state: boolean) => {
+          if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+            if (state) rows[row] |= 1 << (7 - col);
+            else rows[row] &= ~(1 << (7 - col));
+            sync();
+          }
+        },
+        setColumn: (_addr: number, col: number, val: number) => {
+          if (col >= 0 && col < 8) {
+            for (let r = 0; r < 8; r++) {
+              if ((val >> (7 - r)) & 1) rows[r] |= 1 << (7 - col);
+              else rows[r] &= ~(1 << (7 - col));
+            }
+            sync();
+          }
+        },
+      };
+    });
+
+    scope.set('__ctor_SevSeg', () => {
+      const DIGIT_MASK: Record<number, number> = {
+        0: 0b0111111, 1: 0b0000110, 2: 0b1011011, 3: 0b1001111, 4: 0b1100110,
+        5: 0b1101101, 6: 0b1111101, 7: 0b0000111, 8: 0b1111111, 9: 0b1101111,
+      };
+      let curMask = 0;
+      let active = false;
+      return {
+        begin: () => {},
+        setBrightness: () => {},
+        setNumber: (num: number) => {
+          const d = Math.abs(Math.trunc(Number(num) || 0)) % 10;
+          curMask = DIGIT_MASK[d] ?? 0;
+          active = true;
+          this.bridge.onSevenSegUpdate?.(curMask, active);
+        },
+        refreshDisplay: () => {
+          this.bridge.onSevenSegUpdate?.(curMask, active);
+        },
+        blank: () => {
+          active = false;
+          this.bridge.onSevenSegUpdate?.(0, false);
+        },
+      };
+    });
+
+    scope.set('__ctor_NewPing', (trig: any, echo: any) => {
+      const trigId = normalizePinArg(trig ?? 6, this.bridge.boardId);
+      const echoId = normalizePinArg(echo ?? 7, this.bridge.boardId);
+      return {
+        ping_cm: () => this.bridge.onSonarPing?.(trigId, echoId) ?? 0,
+      };
+    });
+
+    scope.set('__ctor_MFRC522', () => {
+      const rfidObj = {
+        uid: { size: 4, uidByte: [0xde, 0xad, 0xbe, 0xef] },
+        PCD_Init: () => {},
+        PICC_IsNewCardPresent: () => Boolean(this.bridge.onRfidCheck?.().present),
+        PICC_ReadCardSerial: () => {
+          const st = this.bridge.onRfidCheck?.();
+          if (st?.present) {
+            rfidObj.uid.uidByte = st.uid;
+            rfidObj.uid.size = st.uid.length;
+            return true;
+          }
+          return false;
+        },
+        PICC_HaltA: () => {},
+      };
+      return rfidObj;
+    });
+
+    scope.set('__ctor_RTC_DS3231', () => ({
+      begin: () => true,
+      now: () => {
+        const d = new Date();
+        return {
+          year: () => d.getFullYear(),
+          month: () => d.getMonth() + 1,
+          day: () => d.getDate(),
+          hour: () => d.getHours(),
+          minute: () => d.getMinutes(),
+          second: () => d.getSeconds(),
+        };
+      },
+    }));
 
     const makeBmeObj = () => ({
       begin: () => true,
@@ -807,7 +1375,6 @@ export class ArduinoRuntime {
       while (this.running && !signal.aborted) {
         await this.checkInterrupts(signal);
         await this.callUserFunc('loop', [], signal);
-        // Yield to browser event loop
         await this.sleep(16, signal);
       }
     } catch (err: any) {
@@ -883,6 +1450,14 @@ export class ArduinoRuntime {
     if (expr.kind === 'unary' && expr.op === '-') {
       return -Number(this.evalExprSync(expr.arg, scope));
     }
+    if (expr.kind === 'binary') {
+      const l = this.evalExprSync(expr.left, scope);
+      const r = this.evalExprSync(expr.right, scope);
+      if (expr.op === '+') return l + r;
+      if (expr.op === '-') return l - r;
+      if (expr.op === '*') return l * r;
+      if (expr.op === '/') return r === 0 ? 0 : l / r;
+    }
     return 0;
   }
 
@@ -914,6 +1489,35 @@ export class ArduinoRuntime {
         else if (stmt.elseStmt) await this.execStmt(stmt.elseStmt, scopes, signal);
         return;
       }
+      case 'switch': {
+        const val = await this.evalExpr(stmt.expr, scopes, signal);
+        let matched = false;
+        let defIdx = -1;
+        try {
+          for (let i = 0; i < stmt.cases.length; i++) {
+            const c = stmt.cases[i];
+            if (c.test === null) {
+              defIdx = i;
+              if (!matched) continue;
+            }
+            if (!matched && c.test !== null) {
+              const tVal = await this.evalExpr(c.test, scopes, signal);
+              if (val == tVal) matched = true;
+            }
+            if (matched) {
+              for (const s of c.body) await this.execStmt(s, scopes, signal);
+            }
+          }
+          if (!matched && defIdx >= 0) {
+            for (let i = defIdx; i < stmt.cases.length; i++) {
+              for (const s of stmt.cases[i].body) await this.execStmt(s, scopes, signal);
+            }
+          }
+        } catch (s) {
+          if (!(s instanceof BreakSignal)) throw s;
+        }
+        return;
+      }
       case 'while': {
         let guard = 0;
         while (this.running && !signal.aborted && (await this.evalExpr(stmt.cond, scopes, signal))) {
@@ -926,6 +1530,19 @@ export class ArduinoRuntime {
           }
           if (++guard % 200 === 0) await this.sleep(1, signal);
         }
+        return;
+      }
+      case 'dowhile': {
+        let guard = 0;
+        do {
+          try {
+            await this.execStmt(stmt.body, scopes, signal);
+          } catch (s) {
+            if (s instanceof BreakSignal) break;
+            if (!(s instanceof ContinueSignal)) throw s;
+          }
+          if (++guard % 200 === 0) await this.sleep(1, signal);
+        } while (this.running && !signal.aborted && (await this.evalExpr(stmt.cond, scopes, signal)));
         return;
       }
       case 'for': {
@@ -973,11 +1590,26 @@ export class ArduinoRuntime {
       }
       case 'member': {
         const obj = await this.evalExpr(expr.obj, scopes, signal);
+        if (typeof obj === 'string') {
+          return makeArduinoString(obj)[expr.prop];
+        }
         if (obj && typeof obj === 'object') return obj[expr.prop];
         return undefined;
       }
+      case 'cast': {
+        const val = await this.evalExpr(expr.arg, scopes, signal);
+        if (['int', 'long', 'short', 'byte', 'uint8_t', 'uint16_t', 'uint32_t'].includes(expr.targetType)) {
+          return Math.trunc(Number(val) || 0);
+        }
+        if (expr.targetType === 'float' || expr.targetType === 'double') {
+          return Number(val) || 0;
+        }
+        if (expr.targetType === 'String') return String(val ?? '');
+        return val;
+      }
       case 'unary': {
         if (expr.op === '!') return !(await this.evalExpr(expr.arg, scopes, signal));
+        if (expr.op === '~') return ~(Number(await this.evalExpr(expr.arg, scopes, signal)) | 0);
         if (expr.op === '-') return -Number(await this.evalExpr(expr.arg, scopes, signal));
         if (expr.op === '+') return +Number(await this.evalExpr(expr.arg, scopes, signal));
         if ((expr.op === '++' || expr.op === '--') && expr.arg.kind === 'var') {
@@ -992,14 +1624,21 @@ export class ArduinoRuntime {
       case 'binary': {
         if (expr.op === '&&') return Boolean(await this.evalExpr(expr.left, scopes, signal)) && Boolean(await this.evalExpr(expr.right, scopes, signal));
         if (expr.op === '||') return Boolean(await this.evalExpr(expr.left, scopes, signal)) || Boolean(await this.evalExpr(expr.right, scopes, signal));
-        const l = await this.evalExpr(expr.left, scopes, signal);
-        const r = await this.evalExpr(expr.right, scopes, signal);
+        const rawL = await this.evalExpr(expr.left, scopes, signal);
+        const rawR = await this.evalExpr(expr.right, scopes, signal);
+        const l = typeof rawL === 'object' && rawL?.__str !== undefined ? rawL.__str : rawL;
+        const r = typeof rawR === 'object' && rawR?.__str !== undefined ? rawR.__str : rawR;
         switch (expr.op) {
           case '+': return l + r;
           case '-': return l - r;
           case '*': return l * r;
           case '/': return r === 0 ? 0 : l / r;
           case '%': return l % r;
+          case '&': return (Number(l) | 0) & (Number(r) | 0);
+          case '|': return (Number(l) | 0) | (Number(r) | 0);
+          case '^': return (Number(l) | 0) ^ (Number(r) | 0);
+          case '<<': return (Number(l) | 0) << (Number(r) | 0);
+          case '>>': return (Number(l) | 0) >> (Number(r) | 0);
           case '==': return l == r;
           case '!=': return l != r;
           case '<': return l < r;
@@ -1019,7 +1658,13 @@ export class ArduinoRuntime {
             expr.op === '+=' ? cur + val :
             expr.op === '-=' ? cur - val :
             expr.op === '*=' ? cur * val :
-            cur / val;
+            expr.op === '/=' ? cur / val :
+            expr.op === '%=' ? cur % val :
+            expr.op === '&=' ? cur & val :
+            expr.op === '|=' ? cur | val :
+            expr.op === '^=' ? cur ^ val :
+            expr.op === '<<=' ? cur << val :
+            cur >> val;
           sc.set(expr.left.name, nxt);
           return nxt;
         }
@@ -1027,6 +1672,11 @@ export class ArduinoRuntime {
           const arr = await this.evalExpr(expr.left.obj, scopes, signal);
           const idx = Number(await this.evalExpr(expr.left.index, scopes, signal));
           if (Array.isArray(arr)) arr[idx] = val;
+          return val;
+        }
+        if (expr.left.kind === 'member') {
+          const obj = await this.evalExpr(expr.left.obj, scopes, signal);
+          if (obj && typeof obj === 'object') obj[expr.left.prop] = val;
           return val;
         }
         return val;
@@ -1048,7 +1698,8 @@ export class ArduinoRuntime {
     signal: AbortSignal
   ): Promise<any> {
     if (callee.kind === 'member') {
-      const obj = await this.evalExpr(callee.obj, scopes, signal);
+      let obj = await this.evalExpr(callee.obj, scopes, signal);
+      if (typeof obj === 'string') obj = makeArduinoString(obj);
       const args = [];
       for (const a of argExprs) args.push(await this.evalExpr(a, scopes, signal));
       const fn = obj?.[callee.prop];
@@ -1104,6 +1755,31 @@ export class ArduinoRuntime {
         return;
       case 'digitalPinToInterrupt':
         return args[0];
+      case 'ledcSetup':
+        return 5000;
+      case 'ledcAttachPin':
+        this.ledcPinMap.set(Number(args[1]) || 0, normalizePinArg(args[0], this.bridge.boardId));
+        return;
+      case 'ledcAttach':
+        this.ledcPinMap.set(Number(args[0]) || 0, normalizePinArg(args[0], this.bridge.boardId));
+        return;
+      case 'ledcWrite': {
+        const ch = Number(args[0]) || 0;
+        const pin = this.ledcPinMap.get(ch) ?? normalizePinArg(ch, this.bridge.boardId);
+        this.bridge.onAnalogWrite?.(pin, Math.max(0, Math.min(255, Number(args[1]) || 0)));
+        return;
+      }
+      case 'ledcWriteTone': {
+        const ch = Number(args[0]) || 0;
+        const pin = this.ledcPinMap.get(ch) ?? normalizePinArg(ch, this.bridge.boardId);
+        this.bridge.onTone?.(pin, Number(args[1]) || 0);
+        return;
+      }
+      case 'touchRead':
+        return 42;
+      case 'dacWrite':
+        this.bridge.onAnalogWrite?.(normalizePinArg(args[0], this.bridge.boardId), Math.max(0, Math.min(255, Number(args[1]) || 0)));
+        return;
       case 'map': {
         const [x, inMin, inMax, outMin, outMax] = args.map(Number);
         if (inMax === inMin) return outMin;
@@ -1118,6 +1794,41 @@ export class ArduinoRuntime {
       case 'abs': return Math.abs(Number(args[0]));
       case 'pow': return Math.pow(Number(args[0]), Number(args[1]));
       case 'sqrt': return Math.sqrt(Number(args[0]));
+      case 'sq': return Math.pow(Number(args[0]), 2);
+      case 'sin': return Math.sin(Number(args[0]));
+      case 'cos': return Math.cos(Number(args[0]));
+      case 'tan': return Math.tan(Number(args[0]));
+      case 'atan2': return Math.atan2(Number(args[0]), Number(args[1]));
+      case 'log': return Math.log(Number(args[0]));
+      case 'log10': return Math.log10(Number(args[0]));
+      case 'exp': return Math.exp(Number(args[0]));
+      case 'round': return Math.round(Number(args[0]));
+      case 'floor': return Math.floor(Number(args[0]));
+      case 'ceil': return Math.ceil(Number(args[0]));
+      case 'isnan': return Number.isNaN(Number(args[0]));
+      case 'isinf': return !Number.isFinite(Number(args[0]));
+      case 'bitRead': return ((Number(args[0]) | 0) >> (Number(args[1]) | 0)) & 1;
+      case 'bitSet': return (Number(args[0]) | 0) | (1 << (Number(args[1]) | 0));
+      case 'bitClear': return (Number(args[0]) | 0) & ~(1 << (Number(args[1]) | 0));
+      case 'bitWrite': {
+        const v = Number(args[0]) | 0;
+        const b = Number(args[1]) | 0;
+        return args[2] ? v | (1 << b) : v & ~(1 << b);
+      }
+      case 'bit': return 1 << (Number(args[0]) | 0);
+      case 'lowByte': return Number(args[0]) & 0xff;
+      case 'highByte': return (Number(args[0]) >> 8) & 0xff;
+      case 'shiftOut': return;
+      case 'randomSeed': return;
+      case 'yield':
+      case 'noInterrupts':
+      case 'interrupts':
+      case 'analogReference':
+      case 'analogReadResolution':
+      case 'analogWriteResolution':
+        return;
+      case 'F':
+        return String(args[0] ?? '');
       case 'random':
         return args.length === 1
           ? Math.floor(Math.random() * Number(args[0]))
@@ -1128,9 +1839,13 @@ export class ArduinoRuntime {
         }
         return String(args[0] ?? '');
       case 'int':
+      case 'long':
         return Math.trunc(Number(args[0]) || 0);
       case 'float':
+      case 'double':
         return Number(args[0]) || 0;
+      case 'byte':
+        return Number(args[0]) & 0xff;
       default: {
         const ctor = this.findVarScope(name, scopes).get(name);
         if (typeof ctor === 'function') return ctor(...args);

@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--navy);
+  background: var(--accent);
   color: #fff;
   text-decoration: none;
   font-size: 0.82rem;
@@ -14,7 +14,7 @@
 }
 
 .btn-back-sim:hover {
-  background: var(--navy-2);
+  background: var(--accent-hover);
   transform: translateY(-1px);
 }
 
@@ -30,7 +30,7 @@
 
 .clases-hero {
   padding: 56px 0 44px;
-  background: linear-gradient(180deg, #efe7d8 0%, var(--paper) 100%);
+  background: linear-gradient(180deg, var(--paper-2) 0%, var(--paper) 100%);
   border-bottom: 1px solid var(--border);
 }
 
@@ -68,7 +68,7 @@
 }
 
 .clases-pill-nav a:hover {
-  border-color: var(--navy);
+  border-color: var(--accent);
   background: #fff;
 }
 
@@ -95,7 +95,7 @@
 .mod-head p {
   margin: 0;
   color: var(--ink-2);
-  max-width: 64ch;
+  max-width: 68ch;
 }
 
 .viz-grid-2 {
@@ -115,7 +115,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: 0 12px 28px -22px rgba(29, 27, 22, 0.35);
+  box-shadow: 0 12px 28px -22px rgba(28, 43, 90, 0.28);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -140,10 +140,10 @@
 
 .svg-stage {
   width: 100%;
-  background: #171c26;
+  background: #141c33;
   border-radius: var(--radius-md);
   padding: 12px;
-  border: 1px solid #283044;
+  border: 1px solid #26355d;
 }
 
 .svg-stage svg {
@@ -153,8 +153,186 @@
 }
 
 .svg-stage.is-light {
-  background: #fbf8f1;
+  background: #fdfbf7;
   border-color: var(--border);
+}
+
+/* Tipografía matemática limpia (fracciones horizontales y subíndices reales) */
+.math-eq-box {
+  background: #141c33;
+  color: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 76px;
+}
+
+.math-eq-box.is-light {
+  background: var(--paper);
+  color: var(--navy);
+  border: 1px solid var(--border);
+}
+
+.math-eq {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--serif);
+  font-size: 1.38rem;
+  line-height: 1.2;
+}
+
+.math-var {
+  font-style: italic;
+  font-weight: 600;
+  color: #ffb066;
+}
+
+.math-eq-box.is-light .math-var {
+  color: var(--navy);
+}
+
+.math-var sub,
+.math-num sub,
+.math-den sub {
+  font-size: 0.64em;
+  font-style: normal;
+  font-family: var(--sans);
+  vertical-align: sub;
+  opacity: 0.9;
+}
+
+.math-op {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.math-val {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  font-weight: 700;
+  color: #7dd3fc;
+}
+
+.math-eq-box.is-light .math-val {
+  color: var(--accent-ink);
+}
+
+.math-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 3px;
+}
+
+.math-num {
+  padding: 0 8px 3px;
+  border-bottom: 1.8px solid currentColor;
+  font-size: 0.92em;
+}
+
+.math-den {
+  padding: 3px 8px 0;
+  font-size: 0.92em;
+}
+
+/* Tarjetas seleccionables de ecuaciones Ohm */
+.ohm-eq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.ohm-eq-card {
+  border: 1.5px solid var(--border);
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--navy);
+  transition: border-color 140ms ease, background-color 140ms ease, transform 120ms ease;
+}
+
+.ohm-eq-card:hover {
+  border-color: var(--navy);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.ohm-eq-card.is-active {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+  box-shadow: 0 8px 18px -12px rgba(28, 43, 90, 0.55);
+}
+
+.ohm-eq-card .ohm-eq-tag {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.ohm-eq-card.is-active .ohm-eq-tag {
+  color: #ffb066;
+}
+
+.ohm-eq-card .math-var {
+  color: var(--navy);
+}
+
+.ohm-eq-card.is-active .math-var {
+  color: #ffb066;
+}
+
+/* Botón reemplazar LED quemado */
+.btn-replace-led {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  align-self: flex-start;
+  transition: background-color 140ms ease, transform 120ms ease;
+}
+
+.btn-replace-led:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+@keyframes ledSmokeRise {
+  0% { transform: translateY(0) scale(0.8); opacity: 0.85; }
+  100% { transform: translateY(-22px) scale(1.45); opacity: 0; }
+}
+
+.led-smoke {
+  animation: ledSmokeRise 1.2s ease-out infinite;
+}
+
+@keyframes sparkPop {
+  0% { opacity: 1; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+.led-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkPop 0.45s ease-out infinite;
 }
 
 /* Flujo de electrones animado */
@@ -190,7 +368,7 @@
 
 .ctrl-group input[type="range"] {
   width: 100%;
-  accent-color: var(--navy);
+  accent-color: var(--accent);
 }
 
 .kpi-trio {
@@ -217,7 +395,7 @@
 
 .kpi-box strong {
   font-family: var(--mono);
-  font-size: 1.15rem;
+  font-size: 1.12rem;
   color: var(--navy);
 }
 
@@ -240,7 +418,7 @@
 
 .seg-btn.is-active {
   background: var(--navy);
-  color: var(--gold-bright);
+  color: #fff;
   border-color: var(--navy);
 }
 
@@ -267,27 +445,6 @@
   background: var(--bad-soft);
   color: #7f1d1d;
   border: 1px solid rgba(178, 74, 44, 0.45);
-}
-
-/* Triángulo Ohm */
-.ohm-tri-btn {
-  cursor: pointer;
-  transition: opacity 150ms ease, filter 150ms ease;
-}
-
-.ohm-tri-btn:hover {
-  filter: brightness(1.12);
-}
-
-.formula-pill {
-  font-family: var(--mono);
-  font-size: 1rem;
-  font-weight: 700;
-  background: #171c26;
-  color: #fbbf24;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  text-align: center;
 }
 
 /* Serie vs Paralelo */
@@ -323,11 +480,12 @@
 /* Protoboard Rayos X */
 .bb-hole-dot {
   cursor: pointer;
-  transition: fill 120ms ease, transform 120ms ease;
+  transition: transform 100ms ease, stroke 100ms ease;
 }
 
 .bb-hole-dot:hover {
-  fill: #f59e0b;
+  stroke: #ff7a1a;
+  stroke-width: 2;
 }
 
 /* Pinout SVG */
@@ -346,7 +504,7 @@
 }
 
 .flow-node.is-lit {
-  filter: drop-shadow(0 0 10px rgba(246, 193, 1, 0.7));
+  filter: drop-shadow(0 0 10px rgba(255, 122, 26, 0.75));
 }
 
 .cmd-grid {
@@ -376,13 +534,61 @@
   color: var(--ink-2);
 }
 
+/* Fundamentos programación Arduino */
+.prog-block-wrap {
+  margin-top: 24px;
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.prog-topic-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.prog-explain {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prog-explain h4 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  color: var(--navy);
+}
+
+.prog-explain p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+
+.prog-bullets {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: var(--ink-2);
+}
+
 @media (max-width: 900px) {
   .viz-grid-2,
-  .sp-compare-grid {
+  .sp-compare-grid,
+  .prog-topic-grid {
     grid-template-columns: 1fr;
   }
 
-  .kpi-trio {
+  .kpi-trio,
+  .ohm-eq-grid {
     grid-template-columns: 1fr;
   }
 }

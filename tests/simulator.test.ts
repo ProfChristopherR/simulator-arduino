@@ -3,10 +3,17 @@ import test from 'node:test';
 import { ARDUINO_UNO_SPEC } from '../src/boards/arduino-uno.ts';
 import { ESP32_SPEC } from '../src/boards/esp32-devkit.ts';
 import { getBoardSpec } from '../src/boards/registry.ts';
+import { bandsToOhms, ohmsToBands } from '../src/education/resistor-calc.ts';
 import { resistorBandsForOhms } from '../src/lab/components/catalog.ts';
 import { MISSIONS } from '../src/lab/missions.ts';
 import { analyzeNetlist, computeSnappedPinsForHole } from '../src/lab/netlist.ts';
-import { ArduinoRuntime } from '../src/lab/simulator/runtime.ts';
+import {
+  installLibrary,
+  isLibraryInstalled,
+  searchLibraries,
+  uninstallLibrary,
+} from '../src/lab/simulator/libraries.ts';
+import { ArduinoCompileError, ArduinoRuntime } from '../src/lab/simulator/runtime.ts';
 import type { PlacedComponent, WireDef } from '../src/types.ts';
 
 test('Netlist: breadboard column connects e5 and a5 with configurable resistor ohms', () => {
@@ -254,4 +261,149 @@ test('All 20 guided missions: clean breadboard mounts, zero diagnostics, all wir
     const rt = new ArduinoRuntime({ boardId: m.boardId });
     rt.compile(m.code);
   }
+});
+
+test('resistor-calc convierte bidireccionalmente bandas 4 y 5 a ohmios', () => {
+  const b4 = bandsToOhms({ mode: 4, d1: 2, d2: 2, multKey: 'brown', tolKey: 'gold' });
+  assert.equal(b4.ohms, 220);
+  assert.equal(b4.tolerancePct, 5);
+
+  const r4 = ohmsToBands(4700, 4, 'gold');
+  assert.equal(r4.d1, 4);
+  assert.equal(r4.d2, 7);
+  assert.equal(r4.multKey, 'red');
+  assert.equal(r4.exactOhms, 4700);
+
+  const b5 = bandsToOhms({ mode: 5, d1: 1, d2: 0, d3: 0, multKey: 'red', tolKey: 'brown' });
+  assert.equal(b5.ohms, 10000);
+  assert.equal(b5.tolerancePct, 1);
+
+  const r5 = ohmsToBands(221000, 5, 'brown');
+  assert.equal(r5.d1, 2);
+  assert.equal(r5.d2, 2);
+  assert.equal(r5.d3, 1);
+  assert.equal(r5.multKey, 'orange');
+});
+
+test('gestor de librerías permite buscar, detectar faltante, instalar y compilar Stepper', async () => {
+  const found = searchLibraries('stepper');
+  assert.ok(found.some((l) => l.id === 'stepper'));
+
+  uninstallLibrary('stepper');
+  assert.equal(isLibraryInstalled('Stepper.h'), false);
+
+  const sketch = `
+#include <Stepper.h>
+Stepper motor(2048, 8, 10, 9, 11);
+void setup() {
+  motor.setSpeed(10);
+  Serial.begin(9600);
+}
+void loop() {
+  motor.step(128);
+  Serial.println("OK");
+  delay(20);
+}
+`;
+  const rtMissing = new ArduinoRuntime({ boardId: 'uno' });
+  assert.throws(
+    () => rtMissing.compile(sketch),
+    (err: unknown) => err instanceof ArduinoCompileError && err.missingLibraryId === 'stepper'
+  );
+
+  installLibrary('stepper');
+  assert.equal(isLibraryInstalled('Stepper.h'), true);
+
+  const logs: string[] = [];
+  let stepsTotal = 0;
+  const rtOk = new ArduinoRuntime({
+    boardId: 'uno',
+    onSerialPrint: (t, nl) => logs.push(nl ? `${t}\n` : t),
+    onStepperStep: (delta) => {
+      stepsTotal += Math.abs(delta);
+    },
+  });
+  const run = rtOk.start(sketch);
+  await new Promise((r) => setTimeout(r, 40));
+  rtOk.stop();
+  await run;
+  assert.ok(logs.some((l) => l.includes('OK')));
+  assert.ok(stepsTotal > 0);
+
+  uninstallLibrary('stepper');
+});
+
+test('runtime soporta sintaxis C++ moderna (switch, do..while, bits, EEPROM, NewPing)', async () => {
+  installLibrary('newping');
+  installLibrary('eeprom');
+  const logs: string[] = [];
+  const rt = new ArduinoRuntime({
+    boardId: 'uno',
+    onSerialPrint: (t, nl) => logs.push(nl ? `${t}\n` : t),
+    onSonarPing: () => 25,
+  });
+  const run = rt.start(`
+#include <EEPROM.h>
+#include <NewPing.h>
+#define MASK B0101
+NewPing sonar(9, 10, 200);
+int a = 3, b = 0b0010;
+void setup() {
+  Serial.begin(9600);
+  EEPROM.write(0, 42);
+  int val = (int)((a | b) & MASK);
+  int c = 0;
+  do { c++; } while (c < 2);
+  switch (val) {
+    case 1: Serial.println("C1"); break;
+    default: Serial.println("DEF"); break;
+  }
+  Serial.println(EEPROM.read(0));
+  Serial.println(sonar.ping_cm());
+  Serial.println(c);
+}
+void loop() { delay(20); }
+`);
+  await new Promise((r) => setTimeout(r, 35));
+  rt.stop();
+  await run;
+  assert.equal(logs.join(''), 'C1\n42\n25\n2\n');
+});
+
+test('netlist conecta divisor LDR de 2 pines y conmuta interruptor deslizante', () => {
+  const ldrPins = computeSnappedPinsForHole('ldr', 'c3');
+  assert.deepEqual(ldrPins, { P1: 'c3', P2: 'c5' });
+
+  const swPins = computeSnappedPinsForHole('slide-switch', 'g3');
+  assert.ok(swPins && Object.keys(swPins).length === 3);
+
+  const comps: PlacedComponent[] = [
+    {
+      uid: 'ldr1',
+      type: 'ldr',
+      position: [0, 0, 0],
+      rotationY: 0,
+      props: { lightPct: 50 },
+      breadboardMount: { pins: ldrPins! },
+      state: {},
+    },
+    {
+      uid: 'sw1',
+      type: 'slide-switch',
+      position: [0, 0, 0],
+      rotationY: 0,
+      props: { slidePos: 0 },
+      breadboardMount: { pins: swPins! },
+      state: {},
+    },
+  ];
+  const wires: WireDef[] = [
+    { id: 'w1', from: 'board:5V', to: 'bb:a3', color: '#dc2626' },
+    { id: 'w2', from: 'bb:e5', to: 'board:A0', color: '#2563eb' },
+  ];
+
+  const netOff = analyzeNetlist(ARDUINO_UNO_SPEC, comps, wires);
+  assert.equal(netOff.hasShortCircuit, false);
+  assert.equal(netOff.areConnected('board:5V', 'bb:c3'), true);
+  assert.equal(netOff.areConnected('bb:c5', 'board:A0'), true);
 });
