@@ -89,6 +89,18 @@ function breadboardTrackOf(endpoint: string): string | null {
   return `bb:track:${half}_${col}`;
 }
 
+function shieldTrackOf(endpoint: string): string | null {
+  if (!endpoint.startsWith('shield:')) return null;
+  const parts = endpoint.split(':');
+  if (parts.length < 3) return null;
+  const [, kind, key] = parts;
+  if (kind === 'S') return `board:${key}`;
+  if (kind === 'V3') return 'board:3V3';
+  if (kind === 'V5') return 'board:VIN';
+  if (kind === 'G') return 'board:GND_1';
+  return null;
+}
+
 export function analyzeNetlist(
   board: BoardSpec,
   components: PlacedComponent[],
@@ -121,6 +133,8 @@ export function analyzeNetlist(
     find(ep);
     const tr = breadboardTrackOf(ep);
     if (tr) union(ep, tr);
+    const sh = shieldTrackOf(ep);
+    if (sh) union(ep, sh);
   };
 
   // Board pins

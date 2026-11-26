@@ -4,8 +4,22 @@ import './styles/clases.css';
 
 import { ARDUINO_UNO_SPEC } from './boards/arduino-uno';
 import { ESP32_SPEC } from './boards/esp32-devkit';
+import { hydrateIcons, setSlotIcon } from './core/icons';
+import { lofi } from './core/lofi';
+import { runPreloaderFinish } from './core/preloader';
+import {
+  TAG_PALETTE,
+  findPinoutRowById,
+  renderPinoutPosterSvg,
+  type PinoutBoardTab,
+  type PinoutRowSpec,
+  type TagKind,
+} from './education/pinout-diagrams';
 import { resistorBandsForOhms, formatOhms } from './lab/components/catalog';
-import type { BoardId, PinCategory, PinDef } from './types';
+import { mountGravityWaterAnalogy, type GravityWaterAnalogyHandle } from './education/water-analogy';
+import type { BoardId } from './types';
+
+hydrateIcons(document);
 
 function hexCss(hex: number): string {
   return `#${hex.toString(16).padStart(6, '0')}`;
@@ -30,10 +44,12 @@ function mountModElectricidad(): void {
   const root = document.getElementById('root-mod-electricidad')!;
   let volts = 5;
   let ohms = 220;
+  let valveClosed = false;
   let ratedW = 0.25;
   let ledState: 'ok' | 'overloading' | 'burned' = 'ok';
   let resState: 'ok' | 'overheating' | 'burned' = 'ok';
   let failTimer: number | null = null;
+  let waterHandle: GravityWaterAnalogyHandle | null = null;
 
   const WATT_RATINGS: Array<{ w: number; label: string; width: number }> = [
     { w: 0.125, label: '1/8 W', width: 92 },
@@ -79,47 +95,10 @@ function mountModElectricidad(): void {
     </div>
 
     <div class="dual-sim-grid">
-      <!-- Simulación 1: Analogía hidráulica animada -->
+      <!-- Simulación 1: Analogía hidráulica por gravedad pura (Canvas 3 niveles) -->
       <div class="viz-card">
-        <h3>Analogía del agua en vivo</h3>
-        <div class="svg-stage">
-          <svg viewBox="0 0 540 280" aria-label="Analogía hidráulica animada de voltaje, corriente, resistencia y potencia">
-            <!-- Estanque izquierdo (Voltaje = Altura/Presión) -->
-            <rect x="26" y="34" width="96" height="168" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
-            <rect id="water-tank-fill" x="30" y="96" width="88" height="102" rx="4" fill="#0284c7" opacity="0.88" />
-            <text x="74" y="24" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="11" font-weight="bold">PRESIÓN (VOLTAJE)</text>
-            <rect x="38" y="40" width="72" height="22" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#38bdf8" stroke-width="1" />
-            <text id="water-v-txt" x="74" y="55" text-anchor="middle" fill="#fff" font-family="monospace" font-size="13" font-weight="bold">5.0 V</text>
-
-            <!-- Tubería principal + retorno -->
-            <path d="M 122 174 L 465 174 L 465 244 L 74 244 L 74 204" fill="none" stroke="#1e293b" stroke-width="26" stroke-linejoin="round" />
-            <path id="water-flow-pipe" class="electron-flow" d="M 122 174 L 465 174 L 465 244 L 74 244 L 74 204" fill="none" stroke="#38bdf8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
-
-            <!-- Válvula de estrangulamiento (Resistencia) -->
-            <g transform="translate(215, 134)">
-              <rect x="0" y="14" width="110" height="52" rx="8" fill="#334155" stroke="#94a3b8" stroke-width="1.8" />
-              <rect id="water-valve-top" x="34" y="14" width="42" height="14" fill="#00c2b5" />
-              <rect id="water-valve-bot" x="34" y="52" width="42" height="14" fill="#00c2b5" />
-              <text x="55" y="6" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="10">VÁLVULA (R)</text>
-              <text id="water-r-txt" x="55" y="84" text-anchor="middle" fill="#fbbf24" font-family="monospace" font-size="12" font-weight="bold">220 Ω</text>
-            </g>
-
-            <!-- Turbina hidráulica (Potencia = Trabajo/seg) -->
-            <g transform="translate(465, 174)">
-              <circle cx="0" cy="0" r="38" fill="#0f172a" stroke="#475569" stroke-width="2.5" />
-              <g id="water-wheel-grp" class="water-wheel">
-                <line x1="-28" y1="0" x2="28" y2="0" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
-                <line x1="0" y1="-28" x2="0" y2="28" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
-                <line x1="-20" y1="-20" x2="20" y2="20" stroke="#7dd3fc" stroke-width="4" stroke-linecap="round" />
-                <line x1="-20" y1="20" x2="20" y2="-20" stroke="#7dd3fc" stroke-width="4" stroke-linecap="round" />
-                <circle cx="0" cy="0" r="9" fill="#00c2b5" />
-              </g>
-              <text x="0" y="-48" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="10" font-weight="bold">TURBINA (POTENCIA)</text>
-            </g>
-
-            <text id="water-i-txt" x="270" y="96" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="13" font-weight="bold">Caudal I = 13.6 mA · P = 0.068 W</text>
-          </svg>
-        </div>
+        <h3>Analogía del agua en vivo (Sistema por gravedad)</h3>
+        <div id="water-analogy-host"></div>
       </div>
 
       <!-- Simulación 2: Circuito eléctrico con LED + Resistencia con potencia -->
@@ -187,7 +166,7 @@ function mountModElectricidad(): void {
         <div style="display:grid;gap:12px">
           <div class="ctrl-group">
             <label class="ctrl-label" for="el-v-range"><span>Voltaje de fuente (${mVar('V')})</span><span id="el-v-lbl">5.0 V</span></label>
-            <input id="el-v-range" type="range" min="1.5" max="12" step="0.5" value="5" />
+            <input id="el-v-range" type="range" min="0" max="10" step="0.5" value="5" />
           </div>
           <div class="ctrl-group">
             <label class="ctrl-label" for="el-r-range"><span>Resistencia (${mVar('R')})</span><span id="el-r-lbl">220 Ω</span></label>
@@ -229,12 +208,12 @@ function mountModElectricidad(): void {
     </div>
   `;
 
-  const update = () => {
+  const update = (syncWater = true) => {
     const vLed = 2.0;
     const vRes = Math.max(0, volts - vLed);
-    const rawAmps = vRes / ohms;
+    const rawAmps = valveClosed ? 0 : vRes / ohms;
     const rawMa = rawAmps * 1000;
-    const rawPr = rawAmps * rawAmps * ohms;
+    const rawPr = valveClosed ? 0 : rawAmps * rawAmps * ohms;
     const rawPt = volts * rawAmps;
 
     const triggerFail = (kind: 'led' | 'res') => {
@@ -254,7 +233,7 @@ function mountModElectricidad(): void {
       triggerFail('res');
     }
 
-    const circuitOpen = ledState === 'burned' || resState === 'burned' || vRes <= 0.05;
+    const circuitOpen = valveClosed || ledState === 'burned' || resState === 'burned' || vRes <= 0.05;
     const activeAmps = circuitOpen ? 0 : rawAmps;
     const activeMa = activeAmps * 1000;
     const activePr = activeAmps * activeAmps * ohms;
@@ -269,11 +248,11 @@ function mountModElectricidad(): void {
 
     // Etiquetas
     document.getElementById('el-v-lbl')!.textContent = `${volts.toFixed(1)} V`;
-    document.getElementById('el-r-lbl')!.textContent = formatOhms(ohms);
+    document.getElementById('el-r-lbl')!.textContent = valveClosed ? '∞ Ω (Llave cerrada)' : formatOhms(ohms);
     document.getElementById('el-w-lbl')!.textContent = `${wMeta.label} (${ratedW.toFixed(3)} W)`;
     document.getElementById('el-svg-v')!.textContent = `${volts.toFixed(1)} V`;
-    document.getElementById('el-svg-r')!.textContent = `${formatOhms(ohms)} · ${wMeta.label}`;
-    document.getElementById('el-svg-i')!.textContent = circuitOpen && (ledState === 'burned' || resState === 'burned')
+    document.getElementById('el-svg-r')!.textContent = valveClosed ? '∞ Ω · Abierto' : `${formatOhms(ohms)} · ${wMeta.label}`;
+    document.getElementById('el-svg-i')!.textContent = circuitOpen && (ledState === 'burned' || resState === 'burned' || valveClosed)
       ? '0.0 mA · CIRCUITO ABIERTO'
       : `I = ${activeMa.toFixed(1)} mA · P(R) = ${activePr.toFixed(3)} W`;
 
@@ -293,37 +272,17 @@ function mountModElectricidad(): void {
         ` &nbsp;|&nbsp; ${mVar('P', 'R')} = ${mVar('I')}<sup>2</sup> · ${mVar('R')} = <span class="math-val">${activePr.toFixed(3)} W</span>`
     );
 
-    // Analogía del agua
-    const fillH = Math.round(28 + ((volts - 1.5) / 10.5) * 124);
-    const tankRect = document.getElementById('water-tank-fill')!;
-    tankRect.setAttribute('height', String(fillH));
-    tankRect.setAttribute('y', String(198 - fillH));
-    document.getElementById('water-v-txt')!.textContent = `${volts.toFixed(1)} V`;
-    document.getElementById('water-r-txt')!.textContent = formatOhms(ohms);
-    document.getElementById('water-i-txt')!.textContent = `Caudal I = ${activeMa.toFixed(1)} mA · Turbina P = ${activePt.toFixed(3)} W`;
+    if (syncWater && waterHandle) {
+      waterHandle.syncFromElectric(volts, ohms, valveClosed);
+    }
 
-    const valveClose = Math.min(24, Math.max(4, Math.round((ohms / 2000) * 24)));
-    document.getElementById('water-valve-top')!.setAttribute('height', String(valveClose));
-    document.getElementById('water-valve-bot')!.setAttribute('height', String(valveClose));
-    document.getElementById('water-valve-bot')!.setAttribute('y', String(66 - valveClose));
-
-    const waterFlow = document.getElementById('water-flow-pipe') as HTMLElement;
-    const wheel = document.getElementById('water-wheel-grp') as HTMLElement;
     const elFlow = document.getElementById('el-flow-line') as HTMLElement;
-
     if (circuitOpen) {
-      waterFlow.classList.add('is-stopped');
       elFlow.classList.add('is-stopped');
-      wheel.classList.add('is-stopped');
     } else {
       const spd = Math.max(0.22, Math.min(3.2, 22 / Math.max(1.5, activeMa)));
-      const wSpd = Math.max(0.35, Math.min(4.0, 0.25 / Math.max(0.015, activePt)));
-      waterFlow.classList.remove('is-stopped');
       elFlow.classList.remove('is-stopped');
-      wheel.classList.remove('is-stopped');
-      waterFlow.style.setProperty('--flow-speed', `${spd.toFixed(2)}s`);
       elFlow.style.setProperty('--flow-speed', `${spd.toFixed(2)}s`);
-      wheel.style.setProperty('--wheel-speed', `${wSpd.toFixed(2)}s`);
     }
 
     // Estados LED y Resistencia
@@ -388,9 +347,15 @@ function mountModElectricidad(): void {
         ? `¡Sobrecalentamiento térmico (${rawPr.toFixed(3)} W > ${wMeta.label})! La resistencia está a punto de quemarse...`
         : `¡Sobrecorriente extrema en LED (${rawMa.toFixed(1)} mA)! Fundiéndose...`;
       replaceBtn.hidden = true;
+    } else if (valveClosed) {
+      banner.className = 'status-banner is-warn';
+      banner.textContent = 'Llave de paso totalmente cerrada (0%): resistencia infinita (∞ Ω), circuito abierto.';
+      replaceBtn.hidden = true;
     } else if (vRes <= 0.05) {
       banner.className = 'status-banner is-warn';
-      banner.textContent = `Voltaje insuficiente (${volts.toFixed(1)} V ≤ 2.0 V) para encender el LED.`;
+      banner.textContent = volts === 0
+        ? 'Sin altura de agua (0.0 m / 0.0 V): estanque vacío, presión y caudal nulos.'
+        : `Voltaje insuficiente (${volts.toFixed(1)} V ≤ 2.0 V) para encender el LED.`;
       replaceBtn.hidden = true;
     } else if (rawMa > 20 || pct > 70) {
       banner.className = 'status-banner is-warn';
@@ -405,13 +370,30 @@ function mountModElectricidad(): void {
     }
   };
 
-  document.getElementById('el-v-range')?.addEventListener('input', (e) => {
-    volts = Number((e.target as HTMLInputElement).value);
-    update();
+  const vSliderEl = document.getElementById('el-v-range') as HTMLInputElement | null;
+  const rSliderEl = document.getElementById('el-r-range') as HTMLInputElement | null;
+
+  waterHandle = mountGravityWaterAnalogy(document.getElementById('water-analogy-host')!, {
+    initialVolts: volts,
+    initialOhms: ohms,
+    onInput: (nextV, nextR, nextClosed) => {
+      volts = nextV;
+      ohms = nextR;
+      valveClosed = nextClosed;
+      if (vSliderEl) vSliderEl.value = String(volts);
+      if (rSliderEl) rSliderEl.value = String(Math.min(2000, Math.max(22, ohms)));
+      update(false);
+    },
   });
-  document.getElementById('el-r-range')?.addEventListener('input', (e) => {
+
+  vSliderEl?.addEventListener('input', (e) => {
+    volts = Number((e.target as HTMLInputElement).value);
+    update(true);
+  });
+  rSliderEl?.addEventListener('input', (e) => {
     ohms = Number((e.target as HTMLInputElement).value);
-    update();
+    valveClosed = false;
+    update(true);
   });
   root.querySelectorAll<HTMLButtonElement>('[data-el-watt]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1803,200 +1785,111 @@ function mountModProtoboard(): void {
 }
 
 /* =========================================================================
- * MÓDULO 5: Pinout Visual con Forma Real de Arduino Uno R3 y ESP32 DevKit V1
+ * MÓDULO 5: Pinout Visual de Referencia (Arduino Uno R3, ESP32 y Shield 30P)
  * ========================================================================= */
 function mountModPinouts(): void {
   const root = document.getElementById('root-mod-pinouts')!;
-  let activeBoard: BoardId = 'uno';
-  let activeCat: 'all' | PinCategory = 'all';
-
-  const CAT_COLORS: Record<PinCategory, string> = {
-    pwr: '#e04f3d',
-    gnd: '#475569',
-    dig: '#2563eb',
-    ana: '#16a34a',
-    com: '#9333ea',
-    ctl: '#00c2b5',
-  };
+  let activeBoard: PinoutBoardTab = 'uno';
+  let activeFilter: 'all' | TagKind = 'all';
+  let selectedPinId = 'uno_d13';
 
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
       <div class="pill-row">
         <button type="button" class="seg-btn is-active" data-po-board="uno">Arduino Uno R3 (5 V)</button>
-        <button type="button" class="seg-btn" data-po-board="esp32">ESP32 DevKit V1 (3.3 V)</button>
+        <button type="button" class="seg-btn" data-po-board="esp32">ESP32 DevKit V1 (30 pines)</button>
+        <button type="button" class="seg-btn" data-po-board="esp32_shield">ESP32 + Shield de Pruebas</button>
       </div>
       <div class="pill-row" id="po-filters">
         <button type="button" class="seg-btn is-active" data-po-cat="all">Todos</button>
-        <button type="button" class="seg-btn" data-po-cat="pwr">Energía</button>
-        <button type="button" class="seg-btn" data-po-cat="gnd">GND</button>
-        <button type="button" class="seg-btn" data-po-cat="dig">Digital / PWM</button>
-        <button type="button" class="seg-btn" data-po-cat="ana">Analógico</button>
-        <button type="button" class="seg-btn" data-po-cat="com">I²C / SPI / UART</button>
+        <button type="button" class="seg-btn" data-po-cat="power">Power</button>
+        <button type="button" class="seg-btn" data-po-cat="arduino">GPIO</button>
+        <button type="button" class="seg-btn" data-po-cat="pwm">PWM ~</button>
+        <button type="button" class="seg-btn" data-po-cat="adc">ADC</button>
+        <button type="button" class="seg-btn" data-po-cat="comm">I²C / SPI / UART</button>
+        <button type="button" class="seg-btn" data-po-cat="int">INT / Touch</button>
       </div>
     </div>
 
-    <div class="viz-grid-2">
-      <div class="viz-card">
-        <h3 id="po-board-title">Mapa interactivo: Arduino Uno R3</h3>
-        <div class="svg-stage" id="po-svg-host"></div>
+    <div class="pinout-sheet">
+      <div class="pinout-scroll-wrap" id="po-svg-host"></div>
+    </div>
+
+    <div class="pinout-inspector-bar" id="po-inspector">
+      <div class="poi-main">
+        <div class="poi-tags" id="po-pin-tags"></div>
+        <h3 class="poi-title" id="po-pin-name">—</h3>
+        <p class="poi-desc" id="po-pin-desc"></p>
       </div>
-
-      <div class="viz-card">
-        <h3>Ficha del pin seleccionado</h3>
-        <div class="math-eq-box" id="po-pin-name" style="min-height:54px;font-family:var(--mono);font-size:1.05rem;font-weight:700">Toca un pin en el diagrama</div>
-        <div class="kpi-trio">
-          <div class="kpi-box"><span>Categoría</span><strong id="po-pin-cat">—</strong></div>
-          <div class="kpi-box"><span>Voltaje</span><strong id="po-pin-v">—</strong></div>
-          <div class="kpi-box"><span>Extra</span><strong id="po-pin-extra">—</strong></div>
-        </div>
-        <p id="po-pin-desc" style="margin:0;color:var(--ink-2)">
-          Haz clic sobre cualquier pin del contorno real para ver su función y qué sensores conectar sin riesgo.
-        </p>
-
-        <div class="mini-rules" style="margin-top:auto">
-          <div class="rule-card is-good"><strong>✓ Pines PWM (~)</strong>Simulan brillo gradual o mueven servos (en Uno: 3, 5, 6, 9, 10, 11).</div>
-          <div class="rule-card is-bad"><strong>✗ Cuidado 5 V ↔ 3.3 V</strong>En ESP32 o sensores BME280 (3.3 V) usa Level Shifter si vienes de 5 V.</div>
-        </div>
+      <div class="poi-meta">
+        <div class="kpi-box"><span>Nivel lógico</span><strong id="po-pin-v">—</strong></div>
+        <div class="kpi-box"><span>Código Arduino rápido</span><pre class="poi-code" id="po-pin-code">—</pre></div>
       </div>
     </div>
   `;
 
-  const showPin = (p: PinDef) => {
-    document.getElementById('po-pin-name')!.textContent = p.label;
-    document.getElementById('po-pin-cat')!.textContent = p.category.toUpperCase();
-    document.getElementById('po-pin-v')!.textContent = `${p.voltage} V`;
-    const extras = [p.pwm ? 'PWM ~' : '', p.i2c ? `I²C ${p.i2c}` : '', p.interrupt ? 'INT' : '']
-      .filter(Boolean)
-      .join(' · ') || 'Estándar';
-    document.getElementById('po-pin-extra')!.textContent = extras;
-    document.getElementById('po-pin-desc')!.textContent = p.description;
+  const showPin = (row: PinoutRowSpec) => {
+    selectedPinId = row.id;
+    document.getElementById('po-pin-name')!.textContent = row.title;
+    document.getElementById('po-pin-v')!.textContent = row.voltage;
+    document.getElementById('po-pin-desc')!.textContent = row.description;
+    document.getElementById('po-pin-code')!.textContent = row.codeExample;
+
+    const tagsEl = document.getElementById('po-pin-tags')!;
+    tagsEl.innerHTML = row.tags
+      .map((t) => {
+        const pal = TAG_PALETTE[t.kind];
+        return `<span class="poi-pill" style="background:${pal.fill};color:${pal.text};border-color:${pal.stroke ?? pal.fill}">${t.text}</span>`;
+      })
+      .join('');
   };
 
-  const renderBoardSvg = () => {
-    const spec = activeBoard === 'uno' ? ARDUINO_UNO_SPEC : ESP32_SPEC;
-    document.getElementById('po-board-title')!.textContent = `Mapa interactivo: ${spec.name} (${spec.logicVoltage} V)`;
+  const renderPoster = () => {
     const host = document.getElementById('po-svg-host')!;
-    const svgW = 680;
-    const svgH = 340;
+    const { svgHtml, defaultPin } = renderPinoutPosterSvg(activeBoard, selectedPinId, activeFilter);
+    host.innerHTML = svgHtml;
 
-    if (activeBoard === 'uno') {
-      // Mapeo fiel de coordenadas reales del Uno (-3.43..+3.43 en X, -2.665..+2.665 en Z)
-      const px = (wx: number) => 110 + ((wx + 3.43) / 6.86) * 480;
-      const py = (wz: number) => 50 + ((wz + 2.665) / 5.33) * 240;
+    const currentRow = findPinoutRowById(selectedPinId) ?? defaultPin;
+    showPin(currentRow);
 
-      const pinsSvg = spec.pins
-        .map((p) => {
-          const x = px(p.localPos[0]);
-          const y = py(p.localPos[2]);
-          const isTop = p.localPos[2] < 0;
-          const match = activeCat === 'all' || p.category === activeCat;
-          const color = CAT_COLORS[p.category];
-          const short = p.id.replace('_TOP', '').replace('_1', '').replace('_2', '').replace('D', '');
-          return `
-            <g class="pinout-dot" data-pin-id="${p.id}" opacity="${match ? 1 : 0.2}">
-              <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="${color}" stroke="#0f172a" stroke-width="1.8" />
-              <text x="${x.toFixed(1)}" y="${(isTop ? y - 14 : y + 18).toFixed(1)}" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="8.5" font-weight="bold">
-                ${p.pwm ? `~${short}` : short}
-              </text>
-            </g>
-          `;
-        })
-        .join('');
-
-      host.innerHTML = `
-        <svg viewBox="0 0 ${svgW} ${svgH}" aria-label="Pinout real Arduino Uno R3">
-          <!-- Contorno PCB real con muescas derechas -->
-          <polygon points="110,50 572,50 590,68 590,122 575,138 575,204 590,220 590,290 110,290"
-            fill="#00828a" stroke="#5ef2e6" stroke-width="2" />
-          <!-- Puerto USB-B izquierdo -->
-          <rect x="74" y="90" width="68" height="54" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
-          <text x="108" y="121" text-anchor="middle" fill="#1e293b" font-family="monospace" font-size="10" font-weight="bold">USB-B</text>
-          <!-- Jack DC negro -->
-          <rect x="78" y="216" width="66" height="44" rx="4" fill="#0f172a" stroke="#475569" stroke-width="2" />
-          <text x="111" y="242" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="9">DC 7-12V</text>
-          <!-- Botón Reset -->
-          <rect x="132" y="64" width="22" height="22" rx="4" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5" />
-          <text x="143" y="96" text-anchor="middle" fill="#fff" font-family="monospace" font-size="8">RST</text>
-          <!-- Cristal 16 MHz y capacitores -->
-          <rect x="242" y="150" width="32" height="14" rx="6" fill="#cbd5e1" />
-          <circle cx="240" cy="222" r="11" fill="#cbd5e1" stroke="#0f172a" stroke-width="2" />
-          <circle cx="240" cy="248" r="11" fill="#cbd5e1" stroke="#0f172a" stroke-width="2" />
-          <!-- ATmega328P DIP-28 -->
-          <rect x="332" y="182" width="188" height="38" rx="4" fill="#0f172a" stroke="#475569" stroke-width="1.5" />
-          <text x="426" y="205" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="bold">ATmega328P-PU</text>
-          <!-- Texto UNO -->
-          <text x="420" y="126" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="22" font-weight="bold">ARDUINO UNO R3</text>
-          <text x="420" y="146" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="11">LÓGICA 5 V · 16 MHz</text>
-          <!-- Cabeceras hembra -->
-          <rect x="220" y="54" width="330" height="22" rx="3" fill="#0f172a" opacity="0.7" />
-          <rect x="285" y="264" width="265" height="22" rx="3" fill="#0f172a" opacity="0.7" />
-          ${pinsSvg}
-        </svg>
-      `;
-    } else {
-      // ESP32 DevKit V1 contorno real angosto con WROOM-32 y antena meandro derecha
-      const px = (wx: number) => 120 + ((wx + 2.575) / 5.15) * 460;
-      const py = (wz: number) => 75 + ((wz + 1.4) / 2.8) * 190;
-
-      const pinsSvg = spec.pins
-        .map((p) => {
-          const x = px(p.localPos[0]);
-          const y = py(p.localPos[2]);
-          const isTop = p.localPos[2] < 0;
-          const match = activeCat === 'all' || p.category === activeCat;
-          const color = CAT_COLORS[p.category];
-          const short = p.id.replace('_1', '').replace('_2', '');
-          return `
-            <g class="pinout-dot" data-pin-id="${p.id}" opacity="${match ? 1 : 0.2}">
-              <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="${color}" stroke="#0f172a" stroke-width="1.8" />
-              <text x="${x.toFixed(1)}" y="${(isTop ? y - 16 : y + 20).toFixed(1)}" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="8.5" font-weight="bold">
-                ${short}
-              </text>
-            </g>
-          `;
-        })
-        .join('');
-
-      host.innerHTML = `
-        <svg viewBox="0 0 ${svgW} ${svgH}" aria-label="Pinout real ESP32 DevKit V1">
-          <!-- PCB oscuro DevKit V1 -->
-          <rect x="120" y="75" width="460" height="190" rx="10" fill="#181c24" stroke="#5ef2e6" stroke-width="2" />
-          <!-- Micro-USB izquierdo -->
-          <rect x="104" y="144" width="38" height="52" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="2" />
-          <!-- Botones EN y BOOT -->
-          <rect x="148" y="114" width="20" height="18" rx="3" fill="#e2e8f0" />
-          <text x="158" y="142" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="8">EN</text>
-          <rect x="148" y="206" width="20" height="18" rx="3" fill="#e2e8f0" />
-          <text x="158" y="198" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="8">BOOT</text>
-          <!-- Shield ESP-WROOM-32 -->
-          <rect x="368" y="114" width="150" height="112" rx="6" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2" />
-          <text x="443" y="166" text-anchor="middle" fill="#1e293b" font-family="monospace" font-size="12" font-weight="bold">ESP-WROOM-32</text>
-          <text x="443" y="184" text-anchor="middle" fill="#475569" font-family="monospace" font-size="9">Wi-Fi + BLE · 3.3 V</text>
-          <!-- Antena meandro dorada -->
-          <path d="M528 122 H566 V142 H534 V162 H566 V182 H534 V202 H566 V220 H528" fill="none" stroke="#eab308" stroke-width="4" />
-          <!-- Regulador AMS1117 -->
-          <rect x="218" y="122" width="38" height="28" rx="3" fill="#0f172a" stroke="#64748b" />
-          ${pinsSvg}
-        </svg>
-      `;
-    }
-
-    host.querySelectorAll<SVGGElement>('[data-pin-id]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const pin = spec.pins.find((p) => p.id === el.dataset.pinId);
-        if (pin) showPin(pin);
+    host.querySelectorAll<SVGGElement>('[data-pin-row]').forEach((el) => {
+      const selectThisPin = () => {
+        const id = el.dataset.pinRow;
+        if (!id) return;
+        const found = findPinoutRowById(id);
+        if (!found) return;
+        selectedPinId = found.id;
+        renderPoster();
+      };
+      el.addEventListener('click', selectThisPin);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectThisPin();
+        }
       });
     });
 
-    if (spec.pins[0]) showPin(spec.pins[0]);
+    host.querySelectorAll<SVGGElement>('[data-po-legend]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const kind = el.dataset.poLegend as TagKind | undefined;
+        if (!kind) return;
+        activeFilter = activeFilter === kind ? 'all' : kind;
+        root.querySelectorAll<HTMLButtonElement>('[data-po-cat]').forEach((b) => {
+          b.classList.toggle('is-active', b.dataset.poCat === activeFilter);
+        });
+        renderPoster();
+      });
+    });
   };
 
   root.querySelectorAll<HTMLButtonElement>('[data-po-board]').forEach((btn) => {
     btn.addEventListener('click', () => {
       root.querySelectorAll('[data-po-board]').forEach((b) => b.classList.remove('is-active'));
       btn.classList.add('is-active');
-      activeBoard = btn.dataset.poBoard as BoardId;
-      renderBoardSvg();
+      activeBoard = btn.dataset.poBoard as PinoutBoardTab;
+      selectedPinId = activeBoard === 'uno' ? 'uno_d13' : 'esp_g21';
+      renderPoster();
     });
   });
 
@@ -2004,12 +1897,12 @@ function mountModPinouts(): void {
     btn.addEventListener('click', () => {
       root.querySelectorAll('[data-po-cat]').forEach((b) => b.classList.remove('is-active'));
       btn.classList.add('is-active');
-      activeCat = btn.dataset.poCat as typeof activeCat;
-      renderBoardSvg();
+      activeFilter = btn.dataset.poCat as typeof activeFilter;
+      renderPoster();
     });
   });
 
-  renderBoardSvg();
+  renderPoster();
 }
 
 /* =========================================================================
@@ -2729,12 +2622,30 @@ if (clasesMobBtn && clasesMobDrawer) {
   });
 }
 
-const hideClasesPreloader = () => {
-  const pre = document.getElementById('app-preloader');
-  if (pre && !pre.classList.contains('is-done')) {
-    pre.classList.add('is-done');
-    setTimeout(() => pre.remove(), 520);
+document.getElementById('clases-lofi-btn')?.addEventListener('click', () => lofi.toggle());
+document.getElementById('clases-lofi-prev')?.addEventListener('click', () => lofi.prev());
+document.getElementById('clases-lofi-next')?.addEventListener('click', () => lofi.next());
+document.getElementById('clases-lofi-pause')?.addEventListener('click', () => {
+  const st = lofi.getState();
+  if (st.playing) lofi.pause();
+  else lofi.resume();
+});
+
+lofi.subscribe((st) => {
+  const active = st.playing || st.paused;
+  const cBtn = document.getElementById('clases-lofi-btn');
+  const cCtrls = document.getElementById('clases-lofi-controls');
+  const cPauseSlot = document.querySelector('#clases-lofi-pause .icon-slot');
+  if (cBtn) {
+    cBtn.classList.toggle('is-playing', st.playing);
+    cBtn.classList.toggle('is-paused', st.paused);
+    cBtn.setAttribute('aria-pressed', String(st.playing));
+    cBtn.title = active ? `${st.trackTitle} (${st.trackIndex + 1}/${st.totalTracks})` : 'Activar música ambiental Lofi aleatoria';
   }
-};
-requestAnimationFrame(() => requestAnimationFrame(hideClasesPreloader));
-window.setTimeout(hideClasesPreloader, 1600);
+  if (cCtrls) cCtrls.hidden = !active;
+  if (cPauseSlot) setSlotIcon(cPauseSlot, st.playing ? 'pause' : 'play');
+});
+lofi.restoreFromSession();
+
+requestAnimationFrame(() => requestAnimationFrame(() => runPreloaderFinish()));
+window.setTimeout(runPreloaderFinish, 1400);

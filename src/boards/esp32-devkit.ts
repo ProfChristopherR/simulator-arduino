@@ -3,13 +3,16 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import type { BoardPartDef, BoardSpec, BuiltBoard3D, PinDef } from '../types';
 import {
   MAT,
+  createGlowSprite,
   createMalePinRow,
   createPcbBase,
   createSilkCanvasTexture,
   createSmdLed,
+  createSmdPassive,
   createTactileButton,
   tagPart,
 } from '../core/board-builder';
+import { ESP32_SHIELD_LIFT_Y, buildEsp32Shield3D } from './esp32-shield';
 
 const ESP_W = 5.15;
 const ESP_D = 2.8;
@@ -190,113 +193,401 @@ const ESP_PARTS: BoardPartDef[] = [
   },
 ];
 
-function buildEsp323D(): BuiltBoard3D {
+function createDetailedWroomModule(): THREE.Group {
+  const grp = new THREE.Group();
+
+  // Sub-PCB portador oscuro del módulo ESP-WROOM-32
+  const carrier = new THREE.Mesh(
+    new RoundedBoxGeometry(2.38, 0.08, 1.84, 2, 0.02),
+    new THREE.MeshPhysicalMaterial({ color: 0x161b22, roughness: 0.42, clearcoat: 0.35 })
+  );
+  carrier.position.y = 0.04;
+  carrier.castShadow = true;
+  grp.add(carrier);
+
+  // Pads almenados dorados (castellated half-holes) en los 3 bordes del módulo
+  const padMat = MAT.gold();
+  const padGeoH = new THREE.BoxGeometry(0.06, 0.09, 0.09);
+  for (let i = 0; i < 14; i++) {
+    const px = -1.04 + i * 0.145;
+    const pTop = new THREE.Mesh(padGeoH, padMat);
+    pTop.position.set(px, 0.045, -0.92);
+    const pBot = new THREE.Mesh(padGeoH, padMat);
+    pBot.position.set(px, 0.045, 0.92);
+    grp.add(pTop, pBot);
+  }
+  const padGeoV = new THREE.BoxGeometry(0.09, 0.09, 0.06);
+  for (let i = 0; i < 10; i++) {
+    const pz = -0.68 + i * 0.15;
+    const pLeft = new THREE.Mesh(padGeoV, padMat);
+    pLeft.position.set(-1.19, 0.045, pz);
+    grp.add(pLeft);
+  }
+
+  // Escudo metálico RF biselado con serigrafía láser Espressif
+  const can = new THREE.Mesh(
+    new RoundedBoxGeometry(1.72, 0.28, 1.72, 3, 0.04),
+    MAT.shieldCan()
+  );
+  can.position.set(-0.22, 0.21, 0);
+  can.castShadow = true;
+  grp.add(can);
+
+  const labelTex = createSilkCanvasTexture(512, 512, (ctx, w, h) => {
+    ctx.fillStyle = '#c2c8d1';
+    ctx.fillRect(0, 0, w, h);
+
+    // Borde sutil grabado
+    ctx.strokeStyle = 'rgba(71, 85, 105, 0.38)';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(20, 20, w - 40, h - 40);
+
+    // Emblema circular estilo Espressif
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(w / 2, 130, 44, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2 - 8, 138, 22, -Math.PI * 0.2, Math.PI * 1.15);
+    ctx.stroke();
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.arc(w / 2 + 16, 114, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ESP-WROOM-32', w / 2, 234);
+
+    ctx.fillStyle = '#334155';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('Wi-Fi + BLE · 2.4GHz', w / 2, 276);
+    ctx.font = '18px monospace';
+    ctx.fillText('ISM 2400-2483.5 MHz', w / 2, 326);
+    ctx.fillText('802.11 b/g/n · 4MB FLASH', w / 2, 356);
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('CE   FCC   RoHS', w / 2, 424);
+  });
+
+  const labelPlate = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.56, 1.56),
+    new THREE.MeshBasicMaterial({ map: labelTex })
+  );
+  labelPlate.rotation.x = -Math.PI / 2;
+  labelPlate.position.set(-0.22, 0.352, 0);
+  grp.add(labelPlate);
+
+  return grp;
+}
+
+function createMeanderAntenna3D(): THREE.Group {
+  const grp = new THREE.Group();
+  const traceMat = MAT.gold();
+  const h = 0.028;
+  const w = 0.065;
+
+  // Trazo de antena 2.4 GHz meandro tridimensional en cobre dorado
+  const segments: Array<[number, number, number, number]> = [
+    [0, -0.58, 0.38, w],
+    [0.19, -0.45, w, 0.32],
+    [0.02, -0.31, 0.34, w],
+    [-0.14, -0.18, w, 0.32],
+    [0.02, -0.04, 0.34, w],
+    [0.19, 0.1, w, 0.34],
+    [0.02, 0.24, 0.34, w],
+    [-0.14, 0.38, w, 0.34],
+    [0.02, 0.52, 0.34, w],
+    [0.19, 0.64, w, 0.26],
+    [0.0, 0.75, 0.38, w],
+  ];
+
+  for (const [sx, sz, sw, sd] of segments) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(sw, h, sd), traceMat);
+    bar.position.set(sx, h * 0.5, sz);
+    grp.add(bar);
+  }
+
+  // Plano de acople plateado en la raíz de la antena
+  const feed = new THREE.Mesh(new THREE.BoxGeometry(0.12, h, 0.14), MAT.metal());
+  feed.position.set(-0.2, h * 0.5, -0.58);
+  grp.add(feed);
+
+  // Hitbox invisible limpio para raycasting de Quiz y Ensamblaje
+  const hit = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.12, 1.66),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
+  );
+  hit.position.set(0.02, 0.06, 0.06);
+  grp.add(hit);
+
+  return grp;
+}
+
+function createMicroUsb3D(): THREE.Group {
+  const grp = new THREE.Group();
+  const shell = new THREE.Mesh(new RoundedBoxGeometry(0.66, 0.28, 0.78, 3, 0.03), MAT.metal());
+  shell.position.y = 0.14;
+  shell.castShadow = true;
+
+  const lip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.31, 0.84), MAT.brushedMetal());
+  lip.position.set(-0.31, 0.145, 0);
+
+  const cavity = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.16, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.92 })
+  );
+  cavity.position.set(-0.28, 0.14, 0);
+
+  const tongue = new THREE.Mesh(
+    new THREE.BoxGeometry(0.14, 0.045, 0.44),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 })
+  );
+  tongue.position.set(-0.28, 0.14, 0);
+
+  // 4 pines SMD traseros de señal y alimentación USB
+  const pinMat = MAT.metal();
+  for (let i = 0; i < 5; i++) {
+    const pin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.035, 0.04), pinMat);
+    pin.position.set(0.35, 0.02, -0.22 + i * 0.11);
+    grp.add(pin);
+  }
+
+  grp.add(shell, lip, cavity, tongue);
+  return grp;
+}
+
+function buildEsp323D(options?: { forWorkbench?: boolean; withShield?: boolean }): BuiltBoard3D {
   const group = new THREE.Group();
+  const devkitGroup = new THREE.Group();
+  if (options?.withShield) {
+    devkitGroup.position.y = ESP32_SHIELD_LIFT_Y;
+  }
+
   const partMeshes = new Map<string, THREE.Object3D>();
   const pinAnchors = new Map<string, THREE.Object3D>();
 
-  const pcb = createPcbBase(ESP_W, PCB_H, ESP_D, 0x191d24, [
-    [-2.3, -1.18],
-    [-2.3, 1.18],
-    [2.3, -1.18],
-    [2.3, 1.18],
+  const pcb = createPcbBase(ESP_W, PCB_H, ESP_D, 0x11151c, [
+    [-2.35, -1.18],
+    [-2.35, 1.18],
+    [2.35, -1.18],
+    [2.35, 1.18],
   ]);
-  group.add(pcb);
+  devkitGroup.add(pcb);
 
-  const silkTex = createSilkCanvasTexture(1024, 560, (ctx, w, h) => {
+  const leftLabels = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13', 'GND', 'VIN'];
+  const rightLabels = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15', 'GND', '3V3'];
+
+  const silkTex = createSilkCanvasTexture(2048, 1120, (ctx, w, h) => {
     ctx.clearRect(0, 0, w, h);
+
+    const toPxX = (wx: number) => ((wx + ESP_W * 0.5) / ESP_W) * w;
+    const toPxY = (wz: number) => ((wz + ESP_D * 0.5) / ESP_D) * h;
+
+    // Pistas de cobre sutiles bajo la máscara negra
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 15; i++) {
+      const px = toPxX(-1.78 + i * 0.254);
+      ctx.beginPath();
+      ctx.moveTo(px, toPxY(-1.08));
+      ctx.lineTo(px, toPxY(-0.82));
+      ctx.moveTo(px, toPxY(1.08));
+      ctx.lineTo(px, toPxY(0.82));
+      ctx.stroke();
+    }
+
+    // Marcas de pines alrededor de las filas superior e inferior
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 21px monospace';
+    for (let i = 0; i < 15; i++) {
+      const px = toPxX(-1.78 + i * 0.254);
+
+      ctx.save();
+      ctx.translate(px, toPxY(-0.92));
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText(leftLabels[i], 0, 7);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(px, toPxY(0.92));
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText(rightLabels[i], 0, 7);
+      ctx.restore();
+    }
+
+    // Etiquetas técnicas de botones, LEDs y placa
+    ctx.fillStyle = '#f1f5f9';
+    ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('EN', toPxX(-2.12), toPxY(-0.36));
+    ctx.fillText('BOOT', toPxX(-2.12), toPxY(0.42));
+
+    ctx.fillStyle = '#fda4af';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('PWR', toPxX(-0.25), toPxY(-0.4));
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillText('D2', toPxX(-0.25), toPxY(0.42));
+
     ctx.fillStyle = '#e2e8f0';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText('ESP32 DEVKIT V1 · 3.3V', 210, 290);
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ESP32 DEVKIT V1', toPxX(-0.72), toPxY(-0.04));
+
+    ctx.fillStyle = '#00c2b5';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('LÓGICA 3.3V · DUAL CORE', toPxX(-0.72), toPxY(0.14));
+
     ctx.fillStyle = '#f6c101';
     ctx.font = 'bold 16px monospace';
-    ctx.fillText('SAN NICOLÁS · GEOGO', 210, 318);
+    ctx.fillText('LICEO SAN NICOLÁS · GEOGO', toPxX(-0.72), toPxY(0.32));
 
-    // Antena trazo
-    ctx.strokeStyle = '#d4a007';
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.moveTo(w - 95, 110);
-    ctx.lineTo(w - 40, 110);
-    ctx.lineTo(w - 40, 175);
-    ctx.lineTo(w - 90, 175);
-    ctx.lineTo(w - 90, 240);
-    ctx.lineTo(w - 40, 240);
-    ctx.lineTo(w - 40, 310);
-    ctx.lineTo(w - 90, 310);
-    ctx.stroke();
+    // Aros plateados alrededor de los 30 pines
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 15; i++) {
+      const px = toPxX(-1.78 + i * 0.254);
+      ctx.beginPath();
+      ctx.arc(px, toPxY(-1.16), 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(px, toPxY(1.16), 12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   });
+
   const silk = new THREE.Mesh(
-    new THREE.PlaneGeometry(ESP_W - 0.1, ESP_D - 0.1),
+    new THREE.PlaneGeometry(ESP_W - 0.08, ESP_D - 0.08),
     new THREE.MeshBasicMaterial({ map: silkTex, transparent: true })
   );
   silk.rotation.x = -Math.PI / 2;
   silk.position.y = PCB_H * 0.5 + 0.005;
-  group.add(silk);
+  devkitGroup.add(silk);
 
-  // 1. Shield ESP-WROOM-32
-  const wroom = new THREE.Mesh(new RoundedBoxGeometry(1.75, 0.34, 1.8, 2, 0.04), MAT.shieldCan());
-  wroom.position.set(1.22, PCB_H * 0.5 + 0.17, 0);
-  wroom.castShadow = true;
+  // 1. Módulo ESP-WROOM-32 con sub-PCB almenado y escudo láser
+  const wroom = createDetailedWroomModule();
+  wroom.position.set(1.36, PCB_H * 0.5, 0);
   tagPart(wroom, 'wroom', partMeshes);
-  group.add(wroom);
+  devkitGroup.add(wroom);
 
-  // 2. Antena hitbox
-  const ant = new THREE.Mesh(
-    new THREE.BoxGeometry(0.45, 0.04, 1.7),
-    new THREE.MeshStandardMaterial({ color: 0xd4a007, roughness: 0.4, metalness: 0.6, transparent: true, opacity: 0.35 })
-  );
-  ant.position.set(2.3, PCB_H * 0.5 + 0.02, 0);
+  // 2. Antena PCB en meandro dorado 3D
+  const ant = createMeanderAntenna3D();
+  ant.position.set(2.26, PCB_H * 0.5 + 0.08, 0);
   tagPart(ant, 'antenna', partMeshes);
-  group.add(ant);
+  devkitGroup.add(ant);
 
-  // 3. Micro-USB
-  const usb = new THREE.Mesh(new RoundedBoxGeometry(0.65, 0.28, 0.78, 2, 0.04), MAT.metal());
-  usb.position.set(-2.35, PCB_H * 0.5 + 0.14, 0);
+  // 3. Conector Micro-USB metálico hueco
+  const usb = createMicroUsb3D();
+  usb.position.set(-2.32, PCB_H * 0.5, 0);
   tagPart(usb, 'usb_micro', partMeshes);
-  group.add(usb);
+  devkitGroup.add(usb);
 
-  // 4. CP2102
-  const cp = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.1, 0.48), MAT.icBody());
-  cp.position.set(-1.45, PCB_H * 0.5 + 0.05, 0.15);
-  tagPart(cp, 'cp2102', partMeshes);
-  group.add(cp);
+  // 4. Puente USB-UART CP2102 QFN-28 con pines metálicos
+  const cpGroup = new THREE.Group();
+  const cpBody = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.09, 0.46, 2, 0.015), MAT.icBody());
+  cpBody.position.y = 0.045;
+  cpBody.castShadow = true;
+  cpGroup.add(cpBody);
+  const leadMat = MAT.metal();
+  for (let i = 0; i < 7; i++) {
+    const off = -0.15 + i * 0.05;
+    const pN = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.03, 0.05), leadMat);
+    pN.position.set(off, 0.015, -0.245);
+    const pS = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.03, 0.05), leadMat);
+    pS.position.set(off, 0.015, 0.245);
+    const pW = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.025), leadMat);
+    pW.position.set(-0.245, 0.015, off);
+    const pE = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.025), leadMat);
+    pE.position.set(0.245, 0.015, off);
+    cpGroup.add(pN, pS, pW, pE);
+  }
+  cpGroup.position.set(-1.38, PCB_H * 0.5, 0.14);
+  tagPart(cpGroup, 'cp2102', partMeshes);
+  devkitGroup.add(cpGroup);
 
-  // 5. AMS1117
-  const reg = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.14, 0.4), MAT.icBody());
-  reg.position.set(-1.4, PCB_H * 0.5 + 0.07, -0.58);
-  tagPart(reg, 'ams1117', partMeshes);
-  group.add(reg);
+  // 5. Regulador AMS1117-3.3 SOT-223 con pestaña térmica y 3 pines
+  const regGroup = new THREE.Group();
+  const regBody = new THREE.Mesh(new RoundedBoxGeometry(0.42, 0.13, 0.26, 2, 0.02), MAT.icBody());
+  regBody.position.set(0, 0.065, 0.04);
+  regBody.castShadow = true;
+  const regTab = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.18), MAT.metal());
+  regTab.position.set(0, 0.045, -0.14);
+  regGroup.add(regBody, regTab);
+  for (const lx of [-0.14, 0, 0.14]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.045, 0.12), MAT.metal());
+    leg.position.set(lx, 0.025, 0.2);
+    regGroup.add(leg);
+  }
+  regGroup.position.set(-1.38, PCB_H * 0.5, -0.58);
+  tagPart(regGroup, 'ams1117', partMeshes);
+  devkitGroup.add(regGroup);
 
-  // 6 & 7. Botones BOOT / EN
-  const btnBoot = createTactileButton();
-  btnBoot.scale.setScalar(0.8);
+  // Pasivos SMD realistas (resistencias, capacitores cerámicos, diodo Schottky y transistores auto-reset)
+  const smdPositions: Array<[number, number, number, number]> = [
+    [-0.95, -0.56, 0x926239, 0],
+    [-0.95, -0.4, 0x926239, 0],
+    [-1.74, -0.52, 0x1a1c20, Math.PI / 2],
+    [-1.74, 0.52, 0x1a1c20, Math.PI / 2],
+    [-0.65, 0.58, 0x1f2937, 0],
+    [-0.45, -0.56, 0x1f2937, 0],
+    [-0.45, 0.56, 0x1f2937, 0],
+  ];
+  for (const [sx, sz, col, rot] of smdPositions) {
+    const smd = createSmdPassive(col);
+    smd.position.set(sx, PCB_H * 0.5 + 0.028, sz);
+    smd.rotation.y = rot;
+    devkitGroup.add(smd);
+  }
+
+  // 6 & 7. Botones BOOT y EN metálicos realistas
+  const btnBoot = createTactileButton(0x1f2937);
+  btnBoot.scale.setScalar(0.78);
   btnBoot.position.set(-2.12, PCB_H * 0.5, 0.65);
   tagPart(btnBoot, 'btn_boot', partMeshes);
-  group.add(btnBoot);
+  devkitGroup.add(btnBoot);
 
-  const btnEn = createTactileButton();
-  btnEn.scale.setScalar(0.8);
+  const btnEn = createTactileButton(0xe2e8f0);
+  btnEn.scale.setScalar(0.78);
   btnEn.position.set(-2.12, PCB_H * 0.5, -0.65);
   tagPart(btnEn, 'btn_en', partMeshes);
-  group.add(btnEn);
+  devkitGroup.add(btnEn);
 
-  // 8. LEDs
+  // 8 & 9. LEDs SMD con halo de luz
   const ledBlue = createSmdLed(0x3b82f6);
-  ledBlue.position.set(-0.25, PCB_H * 0.5 + 0.035, 0.55);
+  ledBlue.position.set(-0.25, PCB_H * 0.5 + 0.038, 0.55);
   tagPart(ledBlue, 'led_gpio2', partMeshes);
-  group.add(ledBlue);
+  devkitGroup.add(ledBlue);
 
   const ledPwr = createSmdLed(0xe74c3c);
-  ledPwr.position.set(-0.25, PCB_H * 0.5 + 0.035, -0.55);
-  (ledPwr.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.9;
+  ledPwr.position.set(-0.25, PCB_H * 0.5 + 0.038, -0.55);
+  (ledPwr.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.4;
+  const pwrGlow = createGlowSprite(0xef4444, 0.42);
+  pwrGlow.position.set(-0.25, PCB_H * 0.5 + 0.14, -0.55);
   tagPart(ledPwr, 'led_pwr', partMeshes);
-  group.add(ledPwr);
+  devkitGroup.add(ledPwr, pwrGlow);
 
-  // 9. Pines macho
+  // 10. Tiras de 2x15 pines macho dorados
   const pinHeaders = createMalePinRow(ESP_PINS, pinAnchors);
   tagPart(pinHeaders, 'headers_esp', partMeshes);
-  group.add(pinHeaders);
+  devkitGroup.add(pinHeaders);
+
+  group.add(devkitGroup);
+
+  let extraPinTargets: BuiltBoard3D['extraPinTargets'] = undefined;
+  if (options?.withShield) {
+    const shield = buildEsp32Shield3D(ESP_PINS, { forWorkbench: options.forWorkbench });
+    group.add(shield.group);
+    if (options.forWorkbench) {
+      shield.signalAnchors.forEach((anchor, pinId) => {
+        pinAnchors.set(pinId, anchor);
+      });
+      extraPinTargets = shield.extraPinTargets;
+    }
+  }
 
   const originalY = new Map<string, number>();
   const targetY = new Map<string, number>();
@@ -311,6 +602,7 @@ function buildEsp323D(): BuiltBoard3D {
     group,
     partMeshes,
     pinAnchors,
+    extraPinTargets,
     leds: { power: ledPwr, builtin: ledBlue },
     buttons: { reset: btnEn },
     setPartAssembled(partId: string, assembled: boolean) {
@@ -342,7 +634,7 @@ function buildEsp323D(): BuiltBoard3D {
           const m = (child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
           if (m && 'emissive' in m) {
             if (id === partId) {
-              m.emissive.setHex(0xd4a007);
+              m.emissive.setHex(0x00c2b5);
               m.emissiveIntensity = 0.45;
             } else if (child !== ledPwr && child !== ledBlue) {
               m.emissive.setHex(0x000000);

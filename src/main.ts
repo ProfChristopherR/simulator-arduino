@@ -3,8 +3,10 @@ import './styles/layout.css';
 import './styles/workbench.css';
 
 import { BOARD_REGISTRY, getBoardSpec } from './boards/registry';
+import { attachSlidingGlassPill } from './core/glass-pill';
 import { hydrateIcons, setSlotIcon } from './core/icons';
 import { lofi } from './core/lofi';
+import { runPreloaderFinish } from './core/preloader';
 import { HeroBoardViewer, type CameraPreset } from './core/viewer';
 import { renderCompareTable } from './education/compare';
 import { PracticeController } from './education/practice';
@@ -17,6 +19,7 @@ function bootstrap(): void {
 
   let activeBoard: BoardId = 'uno';
   let labelsMode = false;
+  let esp32ShieldOn = false;
 
   const heroHost = document.getElementById('hero-canvas-host')!;
   const wbHost = document.getElementById('wb-canvas-host')!;
@@ -182,6 +185,7 @@ function bootstrap(): void {
     if (hPauseSlot) setSlotIcon(hPauseSlot, st.playing ? 'pause' : 'play');
     workbench.syncLofiState(st);
   });
+  lofi.restoreFromSession();
 
   function highlightLabelListItem(partId: string | null): void {
     document.querySelectorAll<HTMLElement>('.hero-label-item').forEach((btn) => {
@@ -232,9 +236,18 @@ function bootstrap(): void {
     document.getElementById('hero-part-desc')!.textContent = part.summary;
   }
 
+  function syncHeroShieldBtn(): void {
+    const shieldBtn = document.getElementById('btn-hero-shield') as HTMLButtonElement | null;
+    if (!shieldBtn) return;
+    shieldBtn.hidden = activeBoard !== 'esp32';
+    shieldBtn.classList.toggle('is-active', esp32ShieldOn && activeBoard === 'esp32');
+    shieldBtn.setAttribute('aria-pressed', String(esp32ShieldOn && activeBoard === 'esp32'));
+  }
+
   function selectBoard(id: BoardId): void {
     activeBoard = id;
     const spec = getBoardSpec(id);
+    const useShield = id === 'esp32' && esp32ShieldOn;
 
     document.getElementById('hero-eyebrow')!.textContent = spec.eyebrow;
     document.getElementById('hero-index')!.textContent = spec.indexLabel;
@@ -251,11 +264,12 @@ function bootstrap(): void {
       }
     });
 
+    syncHeroShieldBtn();
     showHeroPartToast(id, null);
-    viewer.setBoard(spec);
+    viewer.setBoard(spec, { withShield: useShield });
     renderHeroLabelsList(id);
     practice.setBoardSpec(spec);
-    workbench.setBoard(id);
+    workbench.setBoard(id, useShield);
     renderCompareTable(compareRoot, id, boardThumbnails, (chosenId) => selectBoard(chosenId));
   }
 
@@ -290,6 +304,14 @@ function bootstrap(): void {
     document.getElementById('hero-labels-card')!.hidden = !labelsMode;
   });
 
+  document.getElementById('btn-hero-shield')?.addEventListener('click', () => {
+    if (activeBoard !== 'esp32') return;
+    esp32ShieldOn = !esp32ShieldOn;
+    syncHeroShieldBtn();
+    viewer.setBoard(getBoardSpec('esp32'), { withShield: esp32ShieldOn });
+    workbench.setEsp32Shield(esp32ShieldOn);
+  });
+
   document.getElementById('btn-jump-quiz')?.addEventListener('click', () => {
     practice.startQuiz();
   });
@@ -300,16 +322,19 @@ function bootstrap(): void {
 
   selectBoard('uno');
 
-  // Ocultar pantalla de carga suavemente cuando la escena 3D ya está lista
-  const hidePreloader = () => {
-    const pre = document.getElementById('app-preloader');
-    if (pre && !pre.classList.contains('is-done')) {
-      pre.classList.add('is-done');
-      setTimeout(() => pre.remove(), 520);
-    }
-  };
-  requestAnimationFrame(() => requestAnimationFrame(hidePreloader));
-  window.setTimeout(hidePreloader, 1800);
+  // Activar "Rotar" en el visor 3D por defecto
+  viewer.setAutoRotate(true);
+
+  // Efecto glassy deslizante en barra inferior del Hero
+  attachSlidingGlassPill(
+    document.getElementById('hero-toolbar'),
+    document.getElementById('hero-toolbar-pill'),
+    '.tool-btn'
+  );
+
+  // Finalizar pantalla de carga con unificación de círculo Turquesa + pop-up del logo
+  requestAnimationFrame(() => requestAnimationFrame(() => runPreloaderFinish()));
+  window.setTimeout(runPreloaderFinish, 1400);
 }
 
 bootstrap();

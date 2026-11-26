@@ -4,6 +4,7 @@ import { ARDUINO_UNO_SPEC } from '../src/boards/arduino-uno.ts';
 import { ESP32_SPEC } from '../src/boards/esp32-devkit.ts';
 import { getBoardSpec } from '../src/boards/registry.ts';
 import { bandsToOhms, ohmsToBands } from '../src/education/resistor-calc.ts';
+import { computeHydraulicState } from '../src/education/water-analogy.ts';
 import { resistorBandsForOhms } from '../src/lab/components/catalog.ts';
 import { MISSIONS } from '../src/lab/missions.ts';
 import { analyzeNetlist, computeSnappedPinsForHole } from '../src/lab/netlist.ts';
@@ -136,6 +137,27 @@ test('Netlist: ESP32 native 3.3V works safely with BME280 without Level Shifter'
   const res = analyzeNetlist(ESP32_SPEC, comps, wires);
   assert.equal(res.hasVoltageDanger, false);
   assert.equal(res.checkI2CConnection('bme1', 'SDA', 'SCL').connected, true);
+});
+
+test('Netlist: ESP32 Expansion Shield G-V-S headers resolve signals, 3.3V power, and short circuits', () => {
+  const comps: PlacedComponent[] = [
+    { uid: 'r1', type: 'resistor', position: [0, 0, 0], rotationY: 0, props: { ohms: 220 }, state: {} },
+    { uid: 'led1', type: 'led', position: [1, 0, 0], rotationY: 0, props: { color: 'blue' }, state: {} },
+  ];
+  const safeWires: WireDef[] = [
+    { id: 'w1', from: 'shield:S:G2', to: 'comp:r1:P1', color: '#eab308' },
+    { id: 'w2', from: 'comp:r1:P2', to: 'comp:led1:A', color: '#2563eb' },
+    { id: 'w3', from: 'comp:led1:K', to: 'shield:G:R11', color: '#22201c' },
+  ];
+  const res = analyzeNetlist(ESP32_SPEC, comps, safeWires);
+  assert.equal(res.hasShortCircuit, false);
+  assert.equal(res.findBoardSignalPin('led1', 'A').boardPinId, 'G2');
+  assert.equal(res.checkPowerSupply('led1', 'A', 'K').hasGnd, true);
+
+  const shortRes = analyzeNetlist(ESP32_SPEC, [], [
+    { id: 'ws', from: 'shield:V3:R0', to: 'shield:G:R0', color: '#c8402f' },
+  ]);
+  assert.equal(shortRes.hasShortCircuit, true);
 });
 
 test('Netlist: RGB LED warns without series resistors and clears with 3 resistors', () => {
@@ -406,4 +428,19 @@ test('netlist conecta divisor LDR de 2 pines y conmuta interruptor deslizante', 
   assert.equal(netOff.hasShortCircuit, false);
   assert.equal(netOff.areConnected('board:5V', 'bb:c3'), true);
   assert.equal(netOff.areConnected('bb:c5', 'board:A0'), true);
+});
+
+test('water-analogy calcula Ohm puro (2.5 V / 220 Ω = 11.4 mA) y detiene flujo en 0 m o llave cerrada', () => {
+  const ohmRef = computeHydraulicState(2.5, 50, 220);
+  assert.equal(Number(ohmRef.flowMa.toFixed(1)), 11.4);
+  assert.equal(Number(ohmRef.powerW.toFixed(3)), 0.028);
+
+  const emptyTank = computeHydraulicState(0, 100, 220);
+  assert.equal(emptyTank.flowMa, 0);
+  assert.equal(emptyTank.velocityNorm, 0);
+
+  const closedValve = computeHydraulicState(5, 0);
+  assert.equal(closedValve.ohms, Infinity);
+  assert.equal(closedValve.flowMa, 0);
+  assert.equal(closedValve.velocityNorm, 0);
 });

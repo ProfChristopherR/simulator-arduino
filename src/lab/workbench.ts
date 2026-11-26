@@ -11,6 +11,7 @@ import { tags } from '@lezer/highlight';
 import { getBoardSpec } from '../boards/registry';
 import { audio } from '../core/audio';
 import { createSilkCanvasTexture, setupStudioRenderer } from '../core/board-builder';
+import { attachSlidingGlassPill } from '../core/glass-pill';
 import { setSlotIcon } from '../core/icons';
 import { lofi, type LofiState } from '../core/lofi';
 import type {
@@ -87,6 +88,7 @@ export class WorkbenchController {
 
   private boardId: BoardId = 'uno';
   private boardSpec: BoardSpec = getBoardSpec('uno');
+  private esp32Shield = false;
   private builtBoard: BuiltBoard3D | null = null;
   private boardGroup = new THREE.Group();
 
@@ -350,20 +352,39 @@ export class WorkbenchController {
     this.scene.add(esdMat);
   }
 
-  public setBoard(id: BoardId): void {
+  public setBoard(id: BoardId, withShield?: boolean): void {
     this.stopSimulation();
     this.boardId = id;
+    if (typeof withShield === 'boolean') {
+      this.esp32Shield = withShield;
+    }
+    const useShield = id === 'esp32' && this.esp32Shield;
     this.boardSpec = getBoardSpec(id);
     this.boardGroup.clear();
-    this.builtBoard = this.boardSpec.build3D({ forWorkbench: true });
+    this.builtBoard = this.boardSpec.build3D({ forWorkbench: true, withShield: useShield });
     this.builtBoard.group.traverse((c) => {
       if (!c.userData.pinId) c.userData.dragKind = 'board';
     });
     this.boardGroup.add(this.builtBoard.group);
+
+    const shieldBtn = document.getElementById('wb-esp32-shield-btn') as HTMLButtonElement | null;
+    if (shieldBtn) {
+      shieldBtn.hidden = id !== 'esp32';
+      shieldBtn.classList.toggle('is-active', useShield);
+      shieldBtn.setAttribute('aria-pressed', String(useShield));
+    }
+
     this.rebuildPinTargets();
     this.rebuildWires();
     this.updateDiagnostics();
     this.refreshGuideBadges();
+  }
+
+  public setEsp32Shield(enabled: boolean): void {
+    this.esp32Shield = enabled;
+    if (this.boardId !== 'esp32') return;
+    if (this.guardNotRunning('cambiar el Shield de la ESP32')) return;
+    this.setBoard('esp32', enabled);
   }
 
   private renderPalette(filterQuery = ''): void {
@@ -1156,6 +1177,11 @@ export class WorkbenchController {
           });
         }
       }
+      if (this.builtBoard.extraPinTargets) {
+        for (const extra of this.builtBoard.extraPinTargets) {
+          this.pinWorldTargets.push(extra);
+        }
+      }
     }
 
     if (this.showBreadboard) {
@@ -1358,6 +1384,12 @@ export class WorkbenchController {
   }
 
   private bindUI(): void {
+    attachSlidingGlassPill(
+      document.getElementById('wb-topbar-actions'),
+      document.getElementById('wb-actions-pill'),
+      '.wb-btn'
+    );
+
     document.getElementById('wb-run-btn')?.addEventListener('click', () => {
       if (this.isRunning) this.stopSimulation();
       else this.startSimulation();
@@ -1416,6 +1448,19 @@ export class WorkbenchController {
       this.updateDiagnostics();
       this.refreshGuideBadges();
       audio.playClick(420, 40);
+    });
+
+    document.getElementById('wb-esp32-shield-btn')?.addEventListener('click', () => {
+      if (this.boardId !== 'esp32') return;
+      if (this.guardNotRunning('montar o desmontar el Shield ESP32')) return;
+      this.setEsp32Shield(!this.esp32Shield);
+      const hint = document.getElementById('wb-pin-hint');
+      if (hint) {
+        hint.textContent = this.esp32Shield
+          ? 'Shield ESP32 montado: usa las cabeceras G (negro), V (rojo) y S (amarillo) para cablear sensores.'
+          : 'Shield ESP32 desmontado: ESP32 DevKit V1 en modo directo de 30 pines.';
+      }
+      audio.playClick(540, 45);
     });
 
     document.getElementById('wb-topview-btn')?.addEventListener('click', () => {
@@ -2715,7 +2760,7 @@ export class WorkbenchController {
     this.isRunning = true;
     this.stepperAngleDeg = 0;
     document.getElementById('workbench-shell')?.classList.add('is-simulating');
-    const lockBtnIds = ['wb-place-all-btn', 'wb-autowire-btn', 'wb-clear-wires-btn', 'wb-toggle-bb-btn', 'wb-reset-bench-btn', 'wb-load-json-btn'];
+    const lockBtnIds = ['wb-place-all-btn', 'wb-autowire-btn', 'wb-clear-wires-btn', 'wb-esp32-shield-btn', 'wb-toggle-bb-btn', 'wb-reset-bench-btn', 'wb-load-json-btn'];
     lockBtnIds.forEach((id) => {
       const el = document.getElementById(id) as HTMLButtonElement | null;
       if (el) el.disabled = true;
@@ -2951,7 +2996,7 @@ export class WorkbenchController {
     audio.stopTone();
 
     document.getElementById('workbench-shell')?.classList.remove('is-simulating');
-    const lockBtnIds = ['wb-place-all-btn', 'wb-autowire-btn', 'wb-clear-wires-btn', 'wb-toggle-bb-btn', 'wb-reset-bench-btn', 'wb-load-json-btn'];
+    const lockBtnIds = ['wb-place-all-btn', 'wb-autowire-btn', 'wb-clear-wires-btn', 'wb-esp32-shield-btn', 'wb-toggle-bb-btn', 'wb-reset-bench-btn', 'wb-load-json-btn'];
     lockBtnIds.forEach((id) => {
       const el = document.getElementById(id) as HTMLButtonElement | null;
       if (el) el.disabled = false;

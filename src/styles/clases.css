@@ -787,13 +787,45 @@
 
 /* Glassy Sidebar V10 (Rail lateral flotante plegable) */
 /* Glassy Navbar compacto en Clases para no comprimir el logo */
+#clases-top .header-inner {
+  gap: 8px;
+}
+
+#clases-top .brand {
+  flex-shrink: 0;
+}
+
+#clases-top .brand-title {
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+#clases-top .brand-sub {
+  white-space: nowrap;
+}
+
 .site-header.is-glass-floating .main-nav {
-  gap: 2px;
+  gap: 1px;
+  min-width: 0;
 }
 
 .site-header.is-glass-floating .main-nav a {
-  padding: 5px 8px;
-  font-size: 0.8rem;
+  padding: 4px 6px;
+  font-size: 0.74rem;
+}
+
+@media (max-width: 520px) {
+  #clases-top .brand {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  #clases-top .btn-back-sim {
+    padding: 5px 9px;
+    font-size: 0.72rem;
+  }
+  #clases-top .lofi-pill > span:nth-of-type(2) {
+    display: none;
+  }
 }
 
 @media (min-width: 1361px) {
@@ -914,6 +946,202 @@
 
 @media (max-width: 1360px) {
   .glass-rail {
+    display: none;
+  }
+}
+
+/* =========================================================================
+ * Pinouts Poster Estilo Referencia Vertical
+ * ========================================================================= */
+.pinout-sheet {
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.pinout-scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+}
+
+.pinout-svg {
+  display: block;
+  width: 100%;
+  min-width: 820px;
+  height: auto;
+}
+
+.po-row {
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.po-row:hover .po-tag rect {
+  filter: brightness(0.95);
+}
+
+.po-row.is-dimmed {
+  opacity: 0.2;
+}
+
+.pinout-inspector-bar {
+  margin-top: 14px;
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.poi-main {
+  display: grid;
+  gap: 6px;
+}
+
+.poi-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.poi-pill {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1.2px solid transparent;
+}
+
+.poi-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--navy);
+}
+
+.poi-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.48;
+  color: var(--ink-2);
+}
+
+.poi-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.poi-code {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #151515;
+  color: #5ef2e6;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .pinout-inspector-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================================
+ * Simulación Hidráulica por Gravedad + Tabla de Equivalencia
+ * ========================================================================= */
+.water-canvas-wrap {
+  background: #11151c;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(238, 227, 204, 0.14);
+  overflow: hidden;
+}
+
+.water-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 560 / 310;
+}
+
+.water-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.water-equiv-card {
+  margin-top: 10px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.water-equiv-head {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+}
+
+.water-equiv-table {
+  display: grid;
+  gap: 4px;
+}
+
+.water-equiv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--paper-hi);
+  border: 1px solid rgba(21, 21, 21, 0.07);
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+.weq-hydro strong,
+.weq-elec strong {
+  font-family: var(--mono);
+  color: var(--navy);
+}
+
+.weq-arrow {
+  font-family: var(--mono);
+  font-weight: 800;
+  color: var(--accent-ink);
+}
+
+@media (max-width: 640px) {
+  .water-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .water-equiv-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .weq-arrow {
     display: none;
   }
 }

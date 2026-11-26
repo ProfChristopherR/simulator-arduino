@@ -124,18 +124,31 @@
 }
 
 .wb-topbar-actions {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: rgba(247, 241, 228, 0.72);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+}
+
+.wb-topbar-actions .lofi-widget {
+  position: relative;
+  z-index: 1;
 }
 
 .wb-btn {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--border);
-  background: var(--paper-hi);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--ink);
   font-size: 0.78rem;
   font-weight: 700;
@@ -146,8 +159,15 @@
 }
 
 .wb-btn:hover {
-  border-color: var(--navy);
-  background: var(--navy-soft);
+  border-color: transparent;
+  background: transparent;
+  color: var(--navy);
+}
+
+.wb-btn.is-active {
+  background: rgba(0, 194, 181, 0.22);
+  border-color: rgba(0, 120, 111, 0.48);
+  color: var(--accent-ink);
 }
 
 .wb-btn.is-active {

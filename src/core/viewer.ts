@@ -41,6 +41,7 @@ export class HeroBoardViewer {
   private svgOverlay: SVGSVGElement;
 
   private showLabels = false;
+  private withShield = false;
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2(-99, -99);
   private callbacks: HeroViewerCallbacks;
@@ -207,17 +208,19 @@ export class HeroBoardViewer {
     ro.observe(this.host);
   }
 
-  public setBoard(spec: BoardSpec): void {
+  public setBoard(spec: BoardSpec, options?: { withShield?: boolean }): void {
     this.spec = spec;
+    this.withShield = spec.id === 'esp32' ? Boolean(options?.withShield) : false;
     this.exitAssemblyVisuals();
     this.boardRoot.clear();
     this.boardRoot.add(this.footprintGroup);
     this.clearLabels();
 
-    this.built = spec.build3D();
+    this.built = spec.build3D({ withShield: this.withShield });
     this.built.group.position.y = 0.22;
     this.boardRoot.add(this.built.group);
 
+    const shieldLift = this.withShield ? 0.38 : 0;
     spec.parts.forEach((part, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -239,8 +242,8 @@ export class HeroBoardViewer {
       this.calloutPins.push({
         partId: part.id,
         el: btn,
-        anchorPos: new THREE.Vector3(part.localPos[0], part.localPos[1] + 0.12, part.localPos[2]),
-        headPos: new THREE.Vector3(part.localPos[0], part.localPos[1] + lift, part.localPos[2]),
+        anchorPos: new THREE.Vector3(part.localPos[0], part.localPos[1] + shieldLift + 0.12, part.localPos[2]),
+        headPos: new THREE.Vector3(part.localPos[0], part.localPos[1] + shieldLift + lift, part.localPos[2]),
         lineEl: line,
       });
     });

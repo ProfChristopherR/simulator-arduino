@@ -54,13 +54,24 @@ export interface BoardSpec {
   facts: string[];
   pins: PinDef[];
   parts: BoardPartDef[];
-  build3D: (options?: { forWorkbench?: boolean }) => BuiltBoard3D;
+  build3D: (options?: { forWorkbench?: boolean; withShield?: boolean }) => BuiltBoard3D;
+}
+
+export interface ExtraPinTarget {
+  endpoint: string;
+  obj: THREE.Object3D;
+  shortLabel: string;
+  title: string;
+  desc: string;
+  owner: string;
+  category: PinCategory;
 }
 
 export interface BuiltBoard3D {
   group: THREE.Group;
   partMeshes: Map<string, THREE.Object3D>;
   pinAnchors: Map<string, THREE.Object3D>;
+  extraPinTargets?: ExtraPinTarget[];
   leds: {
     power?: THREE.Mesh;
     builtin?: THREE.Mesh;
