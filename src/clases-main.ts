@@ -157,30 +157,26 @@ function mountModElectricidad(): void {
             </text>
           </svg>
         </div>
-      </div>
-    </div>
 
-    <!-- Controles compartidos y ecuaciones matemáticas -->
-    <div class="viz-card" style="margin-top:16px">
-      <div class="dual-sim-grid">
-        <div style="display:grid;gap:12px">
-          <div class="ctrl-group">
-            <label class="ctrl-label" for="el-v-range"><span>Voltaje de fuente (${mVar('V')})</span><span id="el-v-lbl">5.0 V</span></label>
-            <input id="el-v-range" type="range" min="0" max="10" step="0.5" value="5" />
-          </div>
-          <div class="ctrl-group">
-            <label class="ctrl-label" for="el-r-range"><span>Resistencia (${mVar('R')})</span><span id="el-r-lbl">220 Ω</span></label>
-            <input id="el-r-range" type="range" min="22" max="2000" step="10" value="220" />
-          </div>
-          <div class="ctrl-group">
-            <span class="ctrl-label"><span>Potencia nominal de la resistencia</span><span id="el-w-lbl">1/4 W (0.250 W)</span></span>
-            <div class="pill-row">
-              ${WATT_RATINGS.map((wr) => `<button type="button" class="seg-btn ${wr.w === 0.25 ? 'is-active' : ''}" data-el-watt="${wr.w}">${wr.label}</button>`).join('')}
+        <!-- Controles, indicadores y estado directamente debajo del circuito real -->
+        <div class="el-panel-under">
+          <div style="display:grid;gap:10px">
+            <div class="ctrl-group">
+              <label class="ctrl-label" for="el-v-range"><span>Voltaje de fuente (${mVar('V')})</span><span id="el-v-lbl">5.0 V</span></label>
+              <input id="el-v-range" type="range" min="0" max="10" step="0.5" value="5" />
+            </div>
+            <div class="ctrl-group">
+              <label class="ctrl-label" for="el-r-range"><span>Resistencia (${mVar('R')})</span><span id="el-r-lbl">220 Ω</span></label>
+              <input id="el-r-range" type="range" min="22" max="2000" step="10" value="220" />
+            </div>
+            <div class="ctrl-group">
+              <span class="ctrl-label"><span>Potencia nominal de la resistencia</span><span id="el-w-lbl">1/4 W (0.250 W)</span></span>
+              <div class="pill-row">
+                ${WATT_RATINGS.map((wr) => `<button type="button" class="seg-btn ${wr.w === 0.25 ? 'is-active' : ''}" data-el-watt="${wr.w}">${wr.label}</button>`).join('')}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div style="display:grid;gap:10px;align-content:start">
           <div class="kpi-trio">
             <div class="kpi-box"><span>Corriente (${mVar('I')})</span><strong id="el-kpi-i">13.6 mA</strong></div>
             <div class="kpi-box"><span>Potencia en R (${mVar('P', 'R')})</span><strong id="el-kpi-pr">0.041 W</strong></div>
@@ -197,14 +193,17 @@ function mountModElectricidad(): void {
             </div>
           </div>
 
-          <div class="math-eq-box is-light" id="el-math-live"></div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+            <div id="el-safety-banner" class="status-banner is-ok" style="flex:1">Circuito operando en rango seguro.</div>
+            <button type="button" class="btn-replace-led" id="el-replace-btn" hidden>Reemplazar componentes quemados</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
-        <div id="el-safety-banner" class="status-banner is-ok" style="flex:1">Circuito operando en rango seguro.</div>
-        <button type="button" class="btn-replace-led" id="el-replace-btn" hidden>Reemplazar componentes quemados</button>
-      </div>
+    <!-- Ecuaciones matemáticas abajo a ancho completo -->
+    <div class="viz-card" style="margin-top:14px;padding:12px 16px">
+      <div class="math-eq-box is-light" id="el-math-live"></div>
     </div>
   `;
 

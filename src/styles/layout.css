@@ -910,15 +910,22 @@
 .hero-toolbar {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 5px 8px;
+  justify-content: flex-start;
+  gap: 3px;
+  padding: 4px 7px;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
   background: var(--frost-bg);
   backdrop-filter: var(--frost-blur);
   box-shadow: var(--frost-shadow);
   border-radius: 999px;
+}
+
+.hero-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbar-glass-pill {
@@ -947,6 +954,13 @@
 .hero-toolbar .toolbar-sep {
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.hero-toolbar .tool-btn {
+  padding: 6px 9px;
+  font-size: 0.77rem;
 }
 
 .hero-board-dock {

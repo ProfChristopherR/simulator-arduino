@@ -196,6 +196,7 @@
 .concept-def-card .math-var,
 .ctrl-label .math-var,
 .kpi-box .math-var,
+.water-equiv-row .math-var,
 .viz-card .math-eq-box.is-light .math-var {
   color: var(--accent-ink);
 }
@@ -212,6 +213,24 @@
   font-family: var(--sans);
   vertical-align: sub;
   opacity: 0.9;
+}
+
+.math-eq sup {
+  font-size: 0.64em;
+  vertical-align: super;
+  font-style: normal;
+}
+
+.math-num,
+.math-den,
+.math-val {
+  white-space: nowrap;
+}
+
+.el-panel-under {
+  display: grid;
+  gap: 11px;
+  margin-top: 12px;
 }
 
 .math-op {
