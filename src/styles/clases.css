@@ -335,6 +335,162 @@
   animation: sparkPop 0.45s ease-out infinite;
 }
 
+@keyframes waterWheelSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.water-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: waterWheelSpin var(--wheel-speed, 2.2s) linear infinite;
+}
+
+.water-wheel.is-stopped {
+  animation-play-state: paused;
+}
+
+/* Tarjetas didácticas de definiciones */
+.concept-def-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.concept-def-card {
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--navy);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.concept-def-card.is-accent {
+  border-top-color: var(--accent);
+}
+
+.concept-def-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.concept-def-head strong {
+  font-family: var(--serif);
+  font-size: 1.08rem;
+  color: var(--navy);
+}
+
+.concept-unit-badge {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: var(--navy-soft);
+  color: var(--navy);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.concept-def-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.concept-def-analogy {
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.76rem;
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.dual-sim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.power-meter-wrap {
+  display: grid;
+  gap: 5px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+
+.power-meter-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.power-meter-bar {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(28, 43, 90, 0.12);
+  overflow: hidden;
+}
+
+.power-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 160ms ease, background-color 160ms ease;
+}
+
+/* Módulo de Diagramas Eléctricos y Simbología */
+.diag-symbol-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.diag-meta-box {
+  display: grid;
+  gap: 8px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+.diag-meta-box strong {
+  color: var(--navy);
+}
+
+.diag-lab-wrap {
+  margin-top: 22px;
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.diag-clickable {
+  cursor: pointer;
+  transition: opacity 120ms ease, filter 120ms ease;
+}
+
+.diag-clickable:hover {
+  filter: drop-shadow(0 0 8px rgba(255, 122, 26, 0.7));
+}
+
 /* Flujo de electrones animado */
 .electron-flow {
   stroke-dasharray: 8 10;
@@ -385,7 +541,7 @@
   text-align: center;
 }
 
-.kpi-box span {
+.kpi-box > span {
   display: block;
   font-family: var(--mono);
   font-size: 0.66rem;
@@ -580,10 +736,17 @@
   color: var(--ink-2);
 }
 
+@media (max-width: 1024px) {
+  .concept-def-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .viz-grid-2,
   .sp-compare-grid,
-  .prog-topic-grid {
+  .prog-topic-grid,
+  .dual-sim-grid {
     grid-template-columns: 1fr;
   }
 
@@ -594,6 +757,10 @@
 }
 
 @media (max-width: 640px) {
+  .concept-def-grid {
+    grid-template-columns: 1fr;
+  }
+
   .btn-back-sim {
     font-size: 0.72rem;
     padding: 5px 10px;
@@ -601,5 +768,11 @@
 
   .viz-card {
     padding: 14px;
+  }
+
+  .math-eq {
+    font-size: 1.12rem;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }

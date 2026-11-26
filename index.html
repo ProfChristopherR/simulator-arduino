@@ -69,8 +69,26 @@
             </div>
           </div>
           <span class="version-pill" title="Versión del simulador">v0.2.0</span>
+          <button
+            type="button"
+            class="mobile-nav-toggle"
+            id="mobile-nav-toggle"
+            aria-expanded="false"
+            aria-controls="mobile-nav-drawer"
+            aria-label="Abrir menú de navegación"
+          >
+            <span class="icon-slot" data-icon="menu"></span>
+          </button>
         </div>
       </div>
+      <nav class="mobile-nav-drawer" id="mobile-nav-drawer" aria-label="Menú móvil" hidden>
+        <a href="#hero">Placas 3D</a>
+        <a href="#mesa-trabajo">Mesa de trabajo (Simulador)</a>
+        <a href="#calculadora-resistencias">Calculadora de resistencias</a>
+        <a href="./clases.html">Clases Interactivas</a>
+        <a href="#practica">Práctica 3D</a>
+        <a href="#comparar">Comparar placas</a>
+      </nav>
     </header>
 
     <main id="app-main">
@@ -258,6 +276,30 @@
         </div>
 
         <div class="workbench-shell" id="workbench-shell">
+          <!-- Aviso obligatorio de orientación horizontal en celulares -->
+          <div class="wb-rotate-overlay" id="wb-rotate-overlay" aria-live="polite">
+            <svg class="wb-rotate-phone-svg" viewBox="0 0 120 120" width="92" height="92" aria-hidden="true">
+              <g class="wb-phone-rotator">
+                <rect x="38" y="20" width="44" height="80" rx="9" fill="#f7f2ea" stroke="#ff7a1a" stroke-width="3.5" />
+                <rect x="44" y="30" width="32" height="56" rx="3" fill="#1c2b5a" />
+                <circle cx="60" cy="93" r="3" fill="#1c2b5a" />
+              </g>
+              <path d="M 18 58 A 42 42 0 0 1 60 16" fill="none" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 5" />
+              <polygon points="62,10 62,22 72,16" fill="#ff7a1a" />
+            </svg>
+            <h3>Gira tu teléfono a horizontal</h3>
+            <p>
+              Para cablear en la protoboard 3D, mover componentes y programar cómodamente,
+              coloca tu teléfono en posición horizontal (apaisado).
+            </p>
+            <button type="button" class="btn-primary" id="wb-rotate-fs-btn">
+              Activar pantalla completa horizontal
+            </button>
+            <span class="wb-rotate-note" id="wb-rotate-note" hidden>
+              Si tu navegador bloquea el giro automático, desbloquea la rotación de pantalla en tu teléfono y gíralo manualmente.
+            </span>
+          </div>
+
           <!-- Top Bar -->
           <div class="wb-topbar">
             <div class="wb-topbar-left">
@@ -505,25 +547,25 @@
           </div>
 
           <div class="lesson-preview-grid">
-            <a class="lesson-preview-card" href="./clases.html#mod-ohm">
-              <span class="lp-tag">MÓDULO 01 · LEY DE OHM</span>
-              <h3>Voltaje, Corriente y Resistencia</h3>
-              <p>Calcula en vivo cuántos mA recibe un LED, mira sus 4 bandas de color y evita quemarlo.</p>
-            </a>
-            <a class="lesson-preview-card" href="./clases.html#mod-serie-paralelo">
-              <span class="lp-tag">MÓDULO 02 · CIRCUITOS</span>
-              <h3>Serie vs. Paralelo en vivo</h3>
-              <p>Desconecta ramas animadas para ver por qué en serie se apagan todos y en paralelo siguen.</p>
-            </a>
-            <a class="lesson-preview-card" href="./clases.html#mod-protoboard">
-              <span class="lp-tag">MÓDULO 03 · HARDWARE</span>
-              <h3>Rayos X de Protoboard y Pinouts</h3>
-              <p>Toca cualquier orificio para ver sus láminas internas y explora cada pin de Uno y ESP32.</p>
+            <a class="lesson-preview-card" href="./clases.html#mod-electricidad">
+              <span class="lp-tag">MÓDULO 01 · ELECTRICIDAD Y POTENCIA</span>
+              <h3>Analogía del agua, Ley de Ohm y Watts</h3>
+              <p>Aprende voltaje, corriente, resistencia y potencia (1/4W, 1/8W) con LEDs y resistencias animadas.</p>
             </a>
             <a class="lesson-preview-card" href="./clases.html#mod-diagramas">
-              <span class="lp-tag">MÓDULO 04 · CONEXIÓN Y CÓDIGO</span>
-              <h3>Diagramas, PWM y setup() / loop()</h3>
-              <p>Esquemas animados de botón PULLUP, I²C + Level Shifter y osciloscopio PWM interactivo.</p>
+              <span class="lp-tag">MÓDULO 03 · DIAGRAMAS ELÉCTRICOS</span>
+              <h3>Simbología y esquemas animados</h3>
+              <p>Domina símbolos de diodos, LEDs, fuentes, condensadores, transistores y lectura de circuitos.</p>
+            </a>
+            <a class="lesson-preview-card" href="./clases.html#mod-protoboard">
+              <span class="lp-tag">MÓDULO 05 · HARDWARE</span>
+              <h3>Rayos X de Protoboard y Pinouts</h3>
+              <p>Toca orificios para cablear rieles y explora cada terminal de Arduino Uno R3 y ESP32.</p>
+            </a>
+            <a class="lesson-preview-card" href="./clases.html#mod-codigo">
+              <span class="lp-tag">MÓDULO 09 · PROGRAMACIÓN C++</span>
+              <h3>PWM, Pull-Up y Arduino C++</h3>
+              <p>Osciloscopio PWM, resistencias Pull-Up/Down, librerías, variables, funciones y bucles.</p>
             </a>
           </div>
         </div>

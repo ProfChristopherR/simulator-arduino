@@ -40,6 +40,7 @@ import {
   Zap,
   Home,
   X,
+  Menu,
   createElement,
   type IconNode,
 } from 'lucide';
@@ -86,6 +87,7 @@ const ICONS: Record<string, IconNode> = {
   zap: Zap,
   home: Home,
   x: X,
+  menu: Menu,
 };
 
 export function setSlotIcon(slot: Element, name: string): void {

@@ -24,102 +24,385 @@ function mEq(innerHtml: string): string {
 }
 
 /* =========================================================================
- * MÓDULO 1: Electricidad en 30 segundos (Voltaje, Corriente, Resistencia)
+ * MÓDULO 1: Electricidad (Definiciones, Analogía del Agua, Potencia y Falla)
  * ========================================================================= */
 function mountModElectricidad(): void {
   const root = document.getElementById('root-mod-electricidad')!;
   let volts = 5;
-  let ohms = 330;
+  let ohms = 220;
+  let ratedW = 0.25;
+  let ledState: 'ok' | 'overloading' | 'burned' = 'ok';
+  let resState: 'ok' | 'overheating' | 'burned' = 'ok';
+  let failTimer: number | null = null;
+
+  const WATT_RATINGS: Array<{ w: number; label: string; width: number }> = [
+    { w: 0.125, label: '1/8 W', width: 92 },
+    { w: 0.25, label: '1/4 W', width: 112 },
+    { w: 0.5, label: '1/2 W', width: 128 },
+    { w: 1.0, label: '1 W', width: 144 },
+  ];
 
   root.innerHTML = `
-    <div class="viz-grid-2">
+    <div class="concept-def-grid">
+      <article class="concept-def-card">
+        <div class="concept-def-head">
+          <strong>Voltaje (${mVar('V')})</strong>
+          <span class="concept-unit-badge">Voltios (V)</span>
+        </div>
+        <p>Es la diferencia de potencial o fuerza que empuja a los electrones para que recorran un circuito.</p>
+        <div class="concept-def-analogy">Analogía del agua: Altura / presión del estanque.</div>
+      </article>
+      <article class="concept-def-card">
+        <div class="concept-def-head">
+          <strong>Corriente (${mVar('I')})</strong>
+          <span class="concept-unit-badge">Amperios (A / mA)</span>
+        </div>
+        <p>Cantidad de carga eléctrica (electrones) que pasa por un punto del cable cada segundo.</p>
+        <div class="concept-def-analogy">Analogía del agua: Caudal de litros por segundo.</div>
+      </article>
+      <article class="concept-def-card">
+        <div class="concept-def-head">
+          <strong>Resistencia (${mVar('R')})</strong>
+          <span class="concept-unit-badge">Ohmios (Ω)</span>
+        </div>
+        <p>Oposición que presenta un material o componente al paso de la corriente eléctrica.</p>
+        <div class="concept-def-analogy">Analogía del agua: Válvula o estrechamiento del tubo.</div>
+      </article>
+      <article class="concept-def-card is-accent">
+        <div class="concept-def-head">
+          <strong>Potencia (${mVar('P')})</strong>
+          <span class="concept-unit-badge">Watts (W)</span>
+        </div>
+        <p>Energía eléctrica transformada en luz o calor por segundo (${mEq(`${mVar('P')} = ${mVar('V')} · ${mVar('I')}`)}). Las resistencias soportan 1/8 W, 1/4 W, 1/2 W o 1 W antes de quemarse.</p>
+        <div class="concept-def-analogy">Analogía del agua: Fuerza que hace girar la turbina.</div>
+      </article>
+    </div>
+
+    <div class="dual-sim-grid">
+      <!-- Simulación 1: Analogía hidráulica animada -->
       <div class="viz-card">
-        <h3>Circuito animado en vivo</h3>
+        <h3>Analogía del agua en vivo</h3>
         <div class="svg-stage">
-          <svg viewBox="0 0 560 270" aria-label="Diagrama animado de voltaje, corriente y resistencia">
-            <rect x="65" y="45" width="430" height="180" rx="18" fill="none" stroke="#334155" stroke-width="10" />
-            <rect id="el-flow-line" class="electron-flow" x="65" y="45" width="430" height="180" rx="18"
-              fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
+          <svg viewBox="0 0 540 280" aria-label="Analogía hidráulica animada de voltaje, corriente, resistencia y potencia">
+            <!-- Estanque izquierdo (Voltaje = Altura/Presión) -->
+            <rect x="26" y="34" width="96" height="168" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
+            <rect id="water-tank-fill" x="30" y="96" width="88" height="102" rx="4" fill="#0284c7" opacity="0.88" />
+            <text x="74" y="24" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="11" font-weight="bold">PRESIÓN (VOLTAJE)</text>
+            <rect x="38" y="40" width="72" height="22" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#38bdf8" stroke-width="1" />
+            <text id="water-v-txt" x="74" y="55" text-anchor="middle" fill="#fff" font-family="monospace" font-size="13" font-weight="bold">5.0 V</text>
 
-            <g transform="translate(24, 92)">
-              <rect x="0" y="0" width="82" height="86" rx="10" fill="#0f172a" stroke="#ff7a1a" stroke-width="2.5" />
-              <text x="41" y="28" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="13" font-weight="bold">FUENTE</text>
-              <text id="el-svg-v" x="41" y="54" text-anchor="middle" fill="#fff" font-family="monospace" font-size="20" font-weight="bold">5.0 V</text>
-              <text x="41" y="74" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">Presión (V)</text>
+            <!-- Tubería principal + retorno -->
+            <path d="M 122 174 L 465 174 L 465 244 L 74 244 L 74 204" fill="none" stroke="#1e293b" stroke-width="26" stroke-linejoin="round" />
+            <path id="water-flow-pipe" class="electron-flow" d="M 122 174 L 465 174 L 465 244 L 74 244 L 74 204" fill="none" stroke="#38bdf8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+
+            <!-- Válvula de estrangulamiento (Resistencia) -->
+            <g transform="translate(215, 134)">
+              <rect x="0" y="14" width="110" height="52" rx="8" fill="#334155" stroke="#94a3b8" stroke-width="1.8" />
+              <rect id="water-valve-top" x="34" y="14" width="42" height="14" fill="#ff7a1a" />
+              <rect id="water-valve-bot" x="34" y="52" width="42" height="14" fill="#ff7a1a" />
+              <text x="55" y="6" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="10">VÁLVULA (R)</text>
+              <text id="water-r-txt" x="55" y="84" text-anchor="middle" fill="#fbbf24" font-family="monospace" font-size="12" font-weight="bold">220 Ω</text>
             </g>
 
-            <g transform="translate(215, 22)">
-              <rect x="0" y="0" width="130" height="46" rx="10" fill="#dec8a0" stroke="#785500" stroke-width="2" />
-              <rect id="el-res-neck" x="14" y="15" width="102" height="16" rx="4" fill="#991b1b" opacity="0.55" />
-              <text id="el-svg-r" x="65" y="28" text-anchor="middle" fill="#0f172a" font-family="monospace" font-size="13" font-weight="bold">330 Ω</text>
+            <!-- Turbina hidráulica (Potencia = Trabajo/seg) -->
+            <g transform="translate(465, 174)">
+              <circle cx="0" cy="0" r="38" fill="#0f172a" stroke="#475569" stroke-width="2.5" />
+              <g id="water-wheel-grp" class="water-wheel">
+                <line x1="-28" y1="0" x2="28" y2="0" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
+                <line x1="0" y1="-28" x2="0" y2="28" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
+                <line x1="-20" y1="-20" x2="20" y2="20" stroke="#7dd3fc" stroke-width="4" stroke-linecap="round" />
+                <line x1="-20" y1="20" x2="20" y2="-20" stroke="#7dd3fc" stroke-width="4" stroke-linecap="round" />
+                <circle cx="0" cy="0" r="9" fill="#ff7a1a" />
+              </g>
+              <text x="0" y="-48" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="10" font-weight="bold">TURBINA (POTENCIA)</text>
             </g>
 
-            <g transform="translate(460, 102)">
-              <circle id="el-bulb-glow" cx="35" cy="34" r="38" fill="#facc15" opacity="0.3" />
-              <circle id="el-bulb-core" cx="35" cy="34" r="22" fill="#facc15" stroke="#fff" stroke-width="2" />
-              <text x="35" y="76" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">CARGA</text>
-            </g>
-
-            <text id="el-svg-i" x="280" y="205" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="15" font-weight="bold">
-              Corriente I = 15.2 mA
-            </text>
+            <text id="water-i-txt" x="270" y="96" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="13" font-weight="bold">Caudal I = 13.6 mA · P = 0.068 W</text>
           </svg>
         </div>
       </div>
 
+      <!-- Simulación 2: Circuito eléctrico con LED + Resistencia con potencia -->
       <div class="viz-card">
-        <h3>Ajusta la presión y el freno</h3>
-        <div class="ctrl-group">
-          <label class="ctrl-label" for="el-v-range"><span>Voltaje (Presión)</span><span id="el-v-lbl">5.0 V</span></label>
-          <input id="el-v-range" type="range" min="1.5" max="12" step="0.5" value="5" />
+        <h3>Circuito eléctrico real (LED + Resistencia)</h3>
+        <div class="svg-stage">
+          <svg viewBox="0 0 540 280" aria-label="Circuito animado con LED y resistencia con límite de potencia">
+            <rect x="65" y="48" width="410" height="175" rx="18" fill="none" stroke="#334155" stroke-width="10" />
+            <rect id="el-flow-line" class="electron-flow" x="65" y="48" width="410" height="175" rx="18"
+              fill="none" stroke="#38bdf8" stroke-width="4.5" stroke-linecap="round" />
+
+            <!-- Fuente -->
+            <g transform="translate(24, 92)">
+              <rect x="0" y="0" width="84" height="86" rx="10" fill="#0f172a" stroke="#ff7a1a" stroke-width="2.5" />
+              <text x="42" y="26" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="12" font-weight="bold">FUENTE</text>
+              <text id="el-svg-v" x="42" y="54" text-anchor="middle" fill="#fff" font-family="monospace" font-size="20" font-weight="bold">5.0 V</text>
+              <text x="42" y="74" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">Presión (V)</text>
+            </g>
+
+            <!-- Resistencia con 4 bandas + calor / quema -->
+            <g transform="translate(200, 18)">
+              <rect id="el-res-glow" x="-6" y="4" width="124" height="44" rx="18" fill="#ef4444" opacity="0" />
+              <rect id="el-res-body" x="0" y="10" width="112" height="32" rx="14" fill="#dec8a0" stroke="#785500" stroke-width="2" />
+              <rect id="el-rb0" x="20" y="10" width="9" height="32" fill="#dc2626" />
+              <rect id="el-rb1" x="39" y="10" width="9" height="32" fill="#dc2626" />
+              <rect id="el-rb2" x="58" y="10" width="9" height="32" fill="#7c4318" />
+              <rect id="el-rb3" x="82" y="10" width="9" height="32" fill="#d4a007" />
+              <g id="el-res-sparks" opacity="0">
+                <path class="led-spark" d="M56 -4 L62 12 L78 8 L66 22 L80 32 L62 34 L56 48 L48 34 L30 32 L44 22 L32 8 L48 12 Z" fill="#fb923c" />
+              </g>
+              <g id="el-res-smoke" opacity="0">
+                <circle class="led-smoke" cx="44" cy="4" r="9" fill="#94a3b8" />
+                <circle class="led-smoke" cx="68" cy="2" r="11" fill="#64748b" style="animation-delay:0.35s" />
+                <path d="M36 16 L52 26 L44 36 M74 16 L60 26 L68 38" stroke="#f87171" stroke-width="2.5" fill="none" />
+              </g>
+              <text id="el-svg-r" x="56" y="60" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11.5" font-weight="bold">220 Ω · 1/4 W</text>
+            </g>
+
+            <!-- LED con sobrebrillo / chispas / humo -->
+            <g transform="translate(442, 102)">
+              <circle id="el-bulb-glow" cx="32" cy="34" r="40" fill="#ef4444" opacity="0.35" />
+              <circle id="el-bulb-core" cx="32" cy="34" r="22" fill="#ef4444" stroke="#fff" stroke-width="2" />
+              <g id="el-led-sparks" opacity="0">
+                <path class="led-spark" d="M32 2 L36 18 L52 10 L40 24 L58 30 L40 36 L48 52 L32 42 L16 52 L24 36 L6 30 L24 24 L12 10 L28 18 Z" fill="#fef08a" />
+              </g>
+              <g id="el-led-smoke" opacity="0">
+                <circle class="led-smoke" cx="24" cy="6" r="8" fill="#94a3b8" />
+                <circle class="led-smoke" cx="40" cy="2" r="10" fill="#64748b" style="animation-delay:0.4s" />
+                <path d="M22 26 L32 34 L26 42 M42 26 L32 34 L38 44" stroke="#f87171" stroke-width="2.5" fill="none" />
+              </g>
+              <text x="32" y="76" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">LED (2.0 V)</text>
+            </g>
+
+            <text id="el-svg-i" x="270" y="198" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="14" font-weight="bold">
+              I = 13.6 mA · P(R) = 0.041 W
+            </text>
+          </svg>
         </div>
-        <div class="ctrl-group">
-          <label class="ctrl-label" for="el-r-range"><span>Resistencia (Oposición)</span><span id="el-r-lbl">330 Ω</span></label>
-          <input id="el-r-range" type="range" min="100" max="2000" step="10" value="330" />
+      </div>
+    </div>
+
+    <!-- Controles compartidos y ecuaciones matemáticas -->
+    <div class="viz-card" style="margin-top:16px">
+      <div class="dual-sim-grid">
+        <div style="display:grid;gap:12px">
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="el-v-range"><span>Voltaje de fuente (${mVar('V')})</span><span id="el-v-lbl">5.0 V</span></label>
+            <input id="el-v-range" type="range" min="1.5" max="12" step="0.5" value="5" />
+          </div>
+          <div class="ctrl-group">
+            <label class="ctrl-label" for="el-r-range"><span>Resistencia (${mVar('R')})</span><span id="el-r-lbl">220 Ω</span></label>
+            <input id="el-r-range" type="range" min="22" max="2000" step="10" value="220" />
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label"><span>Potencia nominal de la resistencia</span><span id="el-w-lbl">1/4 W (0.250 W)</span></span>
+            <div class="pill-row">
+              ${WATT_RATINGS.map((wr) => `<button type="button" class="seg-btn ${wr.w === 0.25 ? 'is-active' : ''}" data-el-watt="${wr.w}">${wr.label}</button>`).join('')}
+            </div>
+          </div>
         </div>
 
-        <div class="kpi-trio">
-          <div class="kpi-box"><span>Voltaje (V)</span><strong id="el-kpi-v">5.0 V</strong></div>
-          <div class="kpi-box"><span>Resistencia (R)</span><strong id="el-kpi-r">330 Ω</strong></div>
-          <div class="kpi-box"><span>Corriente (I)</span><strong id="el-kpi-i">15.2 mA</strong></div>
-        </div>
+        <div style="display:grid;gap:10px;align-content:start">
+          <div class="kpi-trio">
+            <div class="kpi-box"><span>Corriente (${mVar('I')})</span><strong id="el-kpi-i">13.6 mA</strong></div>
+            <div class="kpi-box"><span>Potencia en R (${mVar('P', 'R')})</span><strong id="el-kpi-pr">0.041 W</strong></div>
+            <div class="kpi-box"><span>Potencia total (${mVar('P')})</span><strong id="el-kpi-pt">0.068 W</strong></div>
+          </div>
 
-        <div class="math-eq-box is-light" id="el-math-live"></div>
+          <div class="power-meter-wrap">
+            <div class="power-meter-head">
+              <span>Carga térmica de la resistencia</span>
+              <span id="el-watt-pct">16% de 0.250 W</span>
+            </div>
+            <div class="power-meter-bar">
+              <div class="power-meter-fill" id="el-watt-fill" style="width:16%;background:#16a34a"></div>
+            </div>
+          </div>
 
-        <div class="rule-card is-good" style="margin-top:0">
-          <strong>Analogía hidráulica</strong>
-          El <b>Voltaje</b> es la presión de la bomba, la <b>Corriente</b> es el caudal por la tubería y la <b>Resistencia</b> estrecha el paso para proteger los componentes.
+          <div class="math-eq-box is-light" id="el-math-live"></div>
         </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+        <div id="el-safety-banner" class="status-banner is-ok" style="flex:1">Circuito operando en rango seguro.</div>
+        <button type="button" class="btn-replace-led" id="el-replace-btn" hidden>Reemplazar componentes quemados</button>
       </div>
     </div>
   `;
 
   const update = () => {
-    const ma = (volts / ohms) * 1000;
-    const speedSec = Math.max(0.22, Math.min(3.4, 24 / Math.max(2, ma)));
-    const flow = document.getElementById('el-flow-line') as HTMLElement;
-    flow.style.setProperty('--flow-speed', `${speedSec.toFixed(2)}s`);
+    const vLed = 2.0;
+    const vRes = Math.max(0, volts - vLed);
+    const rawAmps = vRes / ohms;
+    const rawMa = rawAmps * 1000;
+    const rawPr = rawAmps * rawAmps * ohms;
+    const rawPt = volts * rawAmps;
 
+    const triggerFail = (kind: 'led' | 'res') => {
+      if (failTimer) clearTimeout(failTimer);
+      failTimer = window.setTimeout(() => {
+        if (kind === 'led') ledState = 'burned';
+        else resState = 'burned';
+        update();
+      }, 650);
+    };
+
+    if (ledState === 'ok' && rawMa > 30) {
+      ledState = 'overloading';
+      triggerFail('led');
+    } else if (resState === 'ok' && rawPr > ratedW) {
+      resState = 'overheating';
+      triggerFail('res');
+    }
+
+    const circuitOpen = ledState === 'burned' || resState === 'burned' || vRes <= 0.05;
+    const activeAmps = circuitOpen ? 0 : rawAmps;
+    const activeMa = activeAmps * 1000;
+    const activePr = activeAmps * activeAmps * ohms;
+    const activePt = volts * activeAmps;
+    const wMeta = WATT_RATINGS.find((x) => Math.abs(x.w - ratedW) < 0.001) ?? WATT_RATINGS[1];
+
+    // Bandas dinámicas de la resistencia
+    const bands = resistorBandsForOhms(ohms);
+    bands.forEach((hex, i) => {
+      document.getElementById(`el-rb${i}`)?.setAttribute('fill', hexCss(hex));
+    });
+
+    // Etiquetas
     document.getElementById('el-v-lbl')!.textContent = `${volts.toFixed(1)} V`;
     document.getElementById('el-r-lbl')!.textContent = formatOhms(ohms);
+    document.getElementById('el-w-lbl')!.textContent = `${wMeta.label} (${ratedW.toFixed(3)} W)`;
     document.getElementById('el-svg-v')!.textContent = `${volts.toFixed(1)} V`;
-    document.getElementById('el-svg-r')!.textContent = formatOhms(ohms);
-    document.getElementById('el-svg-i')!.textContent = `Corriente I = ${ma.toFixed(1)} mA`;
+    document.getElementById('el-svg-r')!.textContent = `${formatOhms(ohms)} · ${wMeta.label}`;
+    document.getElementById('el-svg-i')!.textContent = circuitOpen && (ledState === 'burned' || resState === 'burned')
+      ? '0.0 mA · CIRCUITO ABIERTO'
+      : `I = ${activeMa.toFixed(1)} mA · P(R) = ${activePr.toFixed(3)} W`;
 
-    document.getElementById('el-kpi-v')!.textContent = `${volts.toFixed(1)} V`;
-    document.getElementById('el-kpi-r')!.textContent = formatOhms(ohms);
-    document.getElementById('el-kpi-i')!.textContent = `${ma.toFixed(1)} mA`;
+    document.getElementById('el-kpi-i')!.textContent = `${activeMa.toFixed(1)} mA`;
+    document.getElementById('el-kpi-pr')!.textContent = `${activePr.toFixed(3)} W`;
+    document.getElementById('el-kpi-pt')!.textContent = `${activePt.toFixed(3)} W`;
 
+    const pct = Math.min(200, Math.round((rawPr / ratedW) * 100));
+    const fillBar = document.getElementById('el-watt-fill') as HTMLElement;
+    fillBar.style.width = `${Math.min(100, pct)}%`;
+    fillBar.style.background = pct > 100 ? '#dc2626' : pct > 70 ? '#f59e0b' : '#16a34a';
+    document.getElementById('el-watt-pct')!.textContent = `${pct}% de ${ratedW.toFixed(3)} W`;
+
+    // Fórmulas limpias
     document.getElementById('el-math-live')!.innerHTML = mEq(
-      `${mVar('I')} <span class="math-op">=</span> ${mFrac(mVar('V'), mVar('R'))} <span class="math-op">=</span> ${mFrac(`<span class="math-val">${volts.toFixed(1)} V</span>`, `<span class="math-val">${ohms} Ω</span>`)} <span class="math-op">=</span> <span class="math-val">${ma.toFixed(1)} mA</span>`
+      `${mVar('I')} = ${mFrac(`${mVar('V')} − ${mVar('V', 'LED')}`, mVar('R'))} = <span class="math-val">${activeMa.toFixed(1)} mA</span>` +
+        ` &nbsp;|&nbsp; ${mVar('P', 'R')} = ${mVar('I')}<sup>2</sup> · ${mVar('R')} = <span class="math-val">${activePr.toFixed(3)} W</span>`
     );
 
-    const glow = document.getElementById('el-bulb-glow')!;
-    glow.setAttribute('opacity', String(Math.min(0.85, 0.12 + ma / 45)));
-    const neck = document.getElementById('el-res-neck')!;
-    const neckH = Math.max(4, Math.round(28 - (ohms / 2000) * 22));
-    neck.setAttribute('height', String(neckH));
-    neck.setAttribute('y', String(23 - neckH / 2));
+    // Analogía del agua
+    const fillH = Math.round(28 + ((volts - 1.5) / 10.5) * 124);
+    const tankRect = document.getElementById('water-tank-fill')!;
+    tankRect.setAttribute('height', String(fillH));
+    tankRect.setAttribute('y', String(198 - fillH));
+    document.getElementById('water-v-txt')!.textContent = `${volts.toFixed(1)} V`;
+    document.getElementById('water-r-txt')!.textContent = formatOhms(ohms);
+    document.getElementById('water-i-txt')!.textContent = `Caudal I = ${activeMa.toFixed(1)} mA · Turbina P = ${activePt.toFixed(3)} W`;
+
+    const valveClose = Math.min(24, Math.max(4, Math.round((ohms / 2000) * 24)));
+    document.getElementById('water-valve-top')!.setAttribute('height', String(valveClose));
+    document.getElementById('water-valve-bot')!.setAttribute('height', String(valveClose));
+    document.getElementById('water-valve-bot')!.setAttribute('y', String(66 - valveClose));
+
+    const waterFlow = document.getElementById('water-flow-pipe') as HTMLElement;
+    const wheel = document.getElementById('water-wheel-grp') as HTMLElement;
+    const elFlow = document.getElementById('el-flow-line') as HTMLElement;
+
+    if (circuitOpen) {
+      waterFlow.classList.add('is-stopped');
+      elFlow.classList.add('is-stopped');
+      wheel.classList.add('is-stopped');
+    } else {
+      const spd = Math.max(0.22, Math.min(3.2, 22 / Math.max(1.5, activeMa)));
+      const wSpd = Math.max(0.35, Math.min(4.0, 0.25 / Math.max(0.015, activePt)));
+      waterFlow.classList.remove('is-stopped');
+      elFlow.classList.remove('is-stopped');
+      wheel.classList.remove('is-stopped');
+      waterFlow.style.setProperty('--flow-speed', `${spd.toFixed(2)}s`);
+      elFlow.style.setProperty('--flow-speed', `${spd.toFixed(2)}s`);
+      wheel.style.setProperty('--wheel-speed', `${wSpd.toFixed(2)}s`);
+    }
+
+    // Estados LED y Resistencia
+    const bulbGlow = document.getElementById('el-bulb-glow')!;
+    const bulbCore = document.getElementById('el-bulb-core')!;
+    const ledSparks = document.getElementById('el-led-sparks')!;
+    const ledSmoke = document.getElementById('el-led-smoke')!;
+    const resGlow = document.getElementById('el-res-glow')!;
+    const resBody = document.getElementById('el-res-body')!;
+    const resSparks = document.getElementById('el-res-sparks')!;
+    const resSmoke = document.getElementById('el-res-smoke')!;
+    const banner = document.getElementById('el-safety-banner')!;
+    const replaceBtn = document.getElementById('el-replace-btn') as HTMLButtonElement;
+
+    resBody.setAttribute('width', String(wMeta.width));
+
+    if (ledState === 'burned') {
+      bulbGlow.setAttribute('opacity', '0');
+      bulbCore.setAttribute('fill', '#1f2937');
+      ledSparks.setAttribute('opacity', '0');
+      ledSmoke.setAttribute('opacity', '1');
+    } else if (ledState === 'overloading') {
+      bulbGlow.setAttribute('fill', '#fef08a');
+      bulbGlow.setAttribute('opacity', '0.96');
+      bulbCore.setAttribute('fill', '#ffffff');
+      ledSparks.setAttribute('opacity', '1');
+      ledSmoke.setAttribute('opacity', '0');
+    } else {
+      bulbGlow.setAttribute('fill', '#ef4444');
+      bulbGlow.setAttribute('opacity', activeAmps > 0 ? String(Math.min(0.82, 0.16 + activeMa / 28)) : '0');
+      bulbCore.setAttribute('fill', activeAmps > 0 ? '#ef4444' : '#475569');
+      ledSparks.setAttribute('opacity', '0');
+      ledSmoke.setAttribute('opacity', '0');
+    }
+
+    if (resState === 'burned') {
+      resGlow.setAttribute('opacity', '0');
+      resBody.setAttribute('fill', '#1c1917');
+      resSparks.setAttribute('opacity', '0');
+      resSmoke.setAttribute('opacity', '1');
+    } else if (resState === 'overheating') {
+      resGlow.setAttribute('opacity', '0.88');
+      resBody.setAttribute('fill', '#fb923c');
+      resSparks.setAttribute('opacity', '1');
+      resSmoke.setAttribute('opacity', '0');
+    } else {
+      resBody.setAttribute('fill', '#dec8a0');
+      resGlow.setAttribute('opacity', pct > 70 ? String(Math.min(0.45, (pct - 70) / 80)) : '0');
+      resSparks.setAttribute('opacity', '0');
+      resSmoke.setAttribute('opacity', '0');
+    }
+
+    if (ledState === 'burned' || resState === 'burned') {
+      banner.className = 'status-banner is-bad';
+      banner.textContent = resState === 'burned'
+        ? `¡RESISTENCIA QUEMADA! Superó su límite de ${wMeta.label} (${rawPr.toFixed(3)} W > ${ratedW.toFixed(3)} W). Sube el wattaje o la resistencia y reemplaza el componente.`
+        : `¡LED QUEMADO por sobrecorriente (${rawMa.toFixed(1)} mA > 30 mA)! Sube la resistencia y pulsa "Reemplazar componentes quemados".`;
+      replaceBtn.hidden = false;
+    } else if (ledState === 'overloading' || resState === 'overheating') {
+      banner.className = 'status-banner is-bad';
+      banner.textContent = resState === 'overheating'
+        ? `¡Sobrecalentamiento térmico (${rawPr.toFixed(3)} W > ${wMeta.label})! La resistencia está a punto de quemarse...`
+        : `¡Sobrecorriente extrema en LED (${rawMa.toFixed(1)} mA)! Fundiéndose...`;
+      replaceBtn.hidden = true;
+    } else if (vRes <= 0.05) {
+      banner.className = 'status-banner is-warn';
+      banner.textContent = `Voltaje insuficiente (${volts.toFixed(1)} V ≤ 2.0 V) para encender el LED.`;
+      replaceBtn.hidden = true;
+    } else if (rawMa > 20 || pct > 70) {
+      banner.className = 'status-banner is-warn';
+      banner.textContent = pct > 70
+        ? `Advertencia térmica: la resistencia trabaja al ${pct}% de su capacidad (${wMeta.label}).`
+        : `Corriente alta para el LED (${rawMa.toFixed(1)} mA). Recomendado mantener bajo 20 mA.`;
+      replaceBtn.hidden = true;
+    } else {
+      banner.className = 'status-banner is-ok';
+      banner.textContent = `Funcionamiento óptimo: ${activeMa.toFixed(1)} mA en el LED y ${activePr.toFixed(3)} W en resistencia de ${wMeta.label}.`;
+      replaceBtn.hidden = true;
+    }
   };
 
   document.getElementById('el-v-range')?.addEventListener('input', (e) => {
@@ -130,6 +413,21 @@ function mountModElectricidad(): void {
     ohms = Number((e.target as HTMLInputElement).value);
     update();
   });
+  root.querySelectorAll<HTMLButtonElement>('[data-el-watt]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('[data-el-watt]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      ratedW = Number(btn.dataset.elWatt);
+      update();
+    });
+  });
+  document.getElementById('el-replace-btn')?.addEventListener('click', () => {
+    if (failTimer) clearTimeout(failTimer);
+    ledState = 'ok';
+    resState = 'ok';
+    update();
+  });
+
   update();
 }
 
@@ -137,7 +435,7 @@ function mountModElectricidad(): void {
  * MÓDULO 2: Ley de Ohm (Ecuaciones directas) + Laboratorio LED con falla real
  * ========================================================================= */
 type LedKey = 'red' | 'yellow' | 'green' | 'blue';
-type OhmTarget = 'I' | 'V' | 'R' | 'R_LED';
+type OhmTarget = 'I' | 'V' | 'R' | 'R_LED' | 'P';
 
 function mountModOhm(): void {
   const root = document.getElementById('root-mod-ohm')!;
@@ -145,7 +443,9 @@ function mountModOhm(): void {
   let sourceV = 5;
   let ledKey: LedKey = 'red';
   let ohms = 220;
+  let ratedW = 0.25;
   let ledState: 'ok' | 'overloading' | 'burned' = 'ok';
+  let resState: 'ok' | 'overheating' | 'burned' = 'ok';
   let burnTimer: number | null = null;
 
   const LED_META: Record<LedKey, { name: string; vf: number; color: string }> = {
@@ -158,7 +458,7 @@ function mountModOhm(): void {
   root.innerHTML = `
     <div class="viz-grid-2">
       <div class="viz-card">
-        <h3>Ecuaciones fundamentales de la Ley de Ohm</h3>
+        <h3>Ecuaciones fundamentales de la Ley de Ohm y Potencia</h3>
         <div class="ohm-eq-grid" id="ohm-eq-cards">
           <button type="button" class="ohm-eq-card" data-ohm-eq="V">
             <span class="ohm-eq-tag">Despejar Voltaje</span>
@@ -176,6 +476,10 @@ function mountModOhm(): void {
             <span class="ohm-eq-tag">Resistencia para LED</span>
             ${mEq(`${mVar('R', 'LED')} <span class="math-op">=</span> ${mFrac(`${mVar('V', 'fuente')} <span class="math-op">−</span> ${mVar('V', 'LED')}`, mVar('I', 'deseada'))}`)}
           </button>
+          <button type="button" class="ohm-eq-card" data-ohm-eq="P" style="grid-column:span 2">
+            <span class="ohm-eq-tag">Potencia en la Resistencia (Watts)</span>
+            ${mEq(`${mVar('P', 'R')} <span class="math-op">=</span> ${mVar('V', 'R')} <span class="math-op">·</span> ${mVar('I')} <span class="math-op">=</span> ${mVar('I')}<sup>2</sup> <span class="math-op">·</span> ${mVar('R')}`)}
+          </button>
         </div>
 
         <div class="math-eq-box" id="ohm-formula-live"></div>
@@ -183,12 +487,12 @@ function mountModOhm(): void {
 
         <div class="rule-card is-good" style="margin-top:auto">
           <strong>Regla de oro en Arduino</strong>
-          Un LED estándar trabaja seguro entre <b>10 mA y 20 mA</b> (0.010 A – 0.020 A). Sobre <b>30 mA</b> el chip interno se sobrecalienta y se destruye irreversiblemente.
+          Un LED trabaja seguro entre <b>10 mA y 20 mA</b> (sobre 30 mA se funde). Y una resistencia estándar de <b>1/4 W (0.25 W)</b> se quema si disipa más calor del que soporta.
         </div>
       </div>
 
       <div class="viz-card">
-        <h3>Laboratorio de LED + Resistencia real</h3>
+        <h3>Laboratorio de LED + Resistencia con potencia</h3>
         <div class="ctrl-group">
           <span class="ctrl-label"><span>Fuente de alimentación</span></span>
           <div class="pill-row">
@@ -204,46 +508,64 @@ function mountModOhm(): void {
         </div>
 
         <div class="ctrl-group">
+          <span class="ctrl-label"><span>Potencia nominal de la resistencia</span><span id="ohm-w-lbl">1/4 W</span></span>
+          <div class="pill-row">
+            ${[
+              { w: 0.125, l: '1/8 W' },
+              { w: 0.25, l: '1/4 W' },
+              { w: 0.5, l: '1/2 W' },
+              { w: 1.0, l: '1 W' },
+            ].map((x) => `<button type="button" class="seg-btn ${x.w === 0.25 ? 'is-active' : ''}" data-ohm-w="${x.w}">${x.l}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="ctrl-group">
           <label class="ctrl-label" for="ohm-r-slider"><span>Resistencia en serie</span><span id="ohm-r-val">220 Ω</span></label>
-          <input id="ohm-r-slider" type="range" min="33" max="2200" step="10" value="220" />
+          <input id="ohm-r-slider" type="range" min="22" max="2200" step="10" value="220" />
         </div>
 
         <div class="svg-stage">
-          <svg viewBox="0 0 460 175" aria-label="Simulador de LED con animación de quema y código de colores">
+          <svg viewBox="0 0 460 175" aria-label="Simulador de LED y resistencia con animación de sobrecarga">
             <line x1="25" y1="92" x2="435" y2="92" stroke="#475569" stroke-width="5" />
             <line id="ohm-flow" class="electron-flow" x1="25" y1="92" x2="435" y2="92" stroke="#38bdf8" stroke-width="3" />
 
-            <!-- Resistencia SVG 4 bandas -->
+            <!-- Resistencia SVG 4 bandas + sobrecalentamiento -->
             <g transform="translate(82, 66)">
-              <rect x="0" y="8" width="142" height="36" rx="16" fill="#dec8a0" stroke="#785500" stroke-width="2" />
+              <rect id="ohm-res-glow" x="-6" y="2" width="154" height="48" rx="20" fill="#ef4444" opacity="0" />
+              <rect id="ohm-res-body" x="0" y="8" width="142" height="36" rx="16" fill="#dec8a0" stroke="#785500" stroke-width="2" />
               <rect id="ohm-b0" x="26" y="8" width="11" height="36" fill="#dc2626" />
               <rect id="ohm-b1" x="50" y="8" width="11" height="36" fill="#dc2626" />
               <rect id="ohm-b2" x="74" y="8" width="11" height="36" fill="#7c4318" />
               <rect id="ohm-b3" x="104" y="8" width="11" height="36" fill="#d4a007" />
-              <text id="ohm-svg-res-lbl" x="71" y="64" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="12">220 Ω · ±5%</text>
+              <g id="ohm-res-sparks" opacity="0">
+                <path class="led-spark" d="M71 -6 L77 10 L94 6 L81 20 L95 30 L77 32 L71 48 L63 32 L45 30 L59 20 L46 6 L63 10 Z" fill="#fb923c" />
+              </g>
+              <g id="ohm-res-smoke" opacity="0">
+                <circle class="led-smoke" cx="56" cy="2" r="9" fill="#94a3b8" />
+                <circle class="led-smoke" cx="82" cy="-2" r="11" fill="#64748b" style="animation-delay:0.35s" />
+              </g>
+              <text id="ohm-svg-res-lbl" x="71" y="64" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="11.5">220 Ω · 1/4 W</text>
             </g>
 
             <!-- LED animado + sobrecarga + humo -->
             <g transform="translate(316, 38)">
               <circle id="ohm-led-halo" cx="44" cy="54" r="48" fill="#ef4444" opacity="0.4" />
               <circle id="ohm-led-dome" cx="44" cy="54" r="24" fill="#ef4444" stroke="#fff" stroke-width="2" />
-              <!-- Chispas de sobrecarga -->
               <g id="ohm-sparks" opacity="0">
                 <path class="led-spark" d="M44 18 L48 34 L64 26 L52 40 L70 46 L52 52 L60 68 L44 58 L28 68 L36 52 L18 46 L36 40 L24 26 L40 34 Z" fill="#fef08a" />
               </g>
-              <!-- Humo y filamento roto al quemarse -->
               <g id="ohm-smoke-grp" opacity="0">
                 <circle class="led-smoke" cx="34" cy="24" r="8" fill="#94a3b8" />
                 <circle class="led-smoke" cx="50" cy="18" r="10" fill="#64748b" style="animation-delay:0.4s" />
                 <path d="M32 44 L42 54 L36 62 M56 44 L46 54 L52 64" stroke="#f87171" stroke-width="2.5" fill="none" />
               </g>
-              <text id="ohm-led-ma" x="44" y="114" text-anchor="middle" fill="#f8fafc" font-family="monospace" font-size="12" font-weight="bold">13.6 mA</text>
+              <text id="ohm-led-ma" x="44" y="114" text-anchor="middle" fill="#f8fafc" font-family="monospace" font-size="11.5" font-weight="bold">13.6 mA</text>
             </g>
           </svg>
         </div>
 
-        <div id="ohm-safety-banner" class="status-banner is-ok">Corriente segura (13.6 mA) — Brillo óptimo sin dañar el LED.</div>
-        <button type="button" class="btn-replace-led" id="btn-replace-led" hidden>Reemplazar LED quemado</button>
+        <div id="ohm-safety-banner" class="status-banner is-ok">Corriente segura (13.6 mA) — Brillo óptimo sin dañar componentes.</div>
+        <button type="button" class="btn-replace-led" id="btn-replace-led" hidden>Reemplazar componentes quemados</button>
       </div>
     </div>
   `;
@@ -251,21 +573,27 @@ function mountModOhm(): void {
   const renderFormula = () => {
     const meta = LED_META[ledKey];
     const vDrop = Math.max(0, sourceV - meta.vf);
-    const ma = ledState === 'burned' ? 0 : (vDrop / ohms) * 1000;
+    const broken = ledState === 'burned' || resState === 'burned';
+    const amps = broken ? 0 : vDrop / ohms;
+    const ma = amps * 1000;
+    const pr = amps * amps * ohms;
     const recOhms = Math.max(47, Math.round(vDrop / 0.015));
 
     const box = document.getElementById('ohm-formula-live')!;
     const desc = document.getElementById('ohm-formula-desc')!;
 
     if (eqFocus === 'V') {
-      box.innerHTML = mEq(`${mVar('V', 'R')} <span class="math-op">=</span> ${mVar('I')} <span class="math-op">·</span> ${mVar('R')} <span class="math-op">=</span> <span class="math-val">${(ma / 1000).toFixed(3)} A</span> <span class="math-op">·</span> <span class="math-val">${ohms} Ω</span> <span class="math-op">=</span> <span class="math-val">${((ma / 1000) * ohms).toFixed(2)} V</span>`);
+      box.innerHTML = mEq(`${mVar('V', 'R')} <span class="math-op">=</span> ${mVar('I')} <span class="math-op">·</span> ${mVar('R')} <span class="math-op">=</span> <span class="math-val">${amps.toFixed(3)} A</span> <span class="math-op">·</span> <span class="math-val">${ohms} Ω</span> <span class="math-op">=</span> <span class="math-val">${(amps * ohms).toFixed(2)} V</span>`);
       desc.textContent = 'Calcula la caída de tensión en la resistencia limitadora al multiplicar la corriente por el valor en ohmios.';
     } else if (eqFocus === 'I') {
       box.innerHTML = mEq(`${mVar('I')} <span class="math-op">=</span> ${mFrac(`${mVar('V', 'fuente')} <span class="math-op">−</span> ${mVar('V', 'LED')}`, mVar('R'))} <span class="math-op">=</span> ${mFrac(`<span class="math-val">${vDrop.toFixed(1)} V</span>`, `<span class="math-val">${ohms} Ω</span>`)} <span class="math-op">=</span> <span class="math-val">${ma.toFixed(1)} mA</span>`);
       desc.textContent = 'Permite comprobar cuántos miliamperios circulan por el LED antes de energizar el circuito real.';
     } else if (eqFocus === 'R') {
-      box.innerHTML = mEq(`${mVar('R')} <span class="math-op">=</span> ${mFrac(mVar('V', 'R'), mVar('I'))} <span class="math-op">=</span> ${mFrac(`<span class="math-val">${vDrop.toFixed(1)} V</span>`, `<span class="math-val">${Math.max(0.001, ma / 1000).toFixed(3)} A</span>`)} <span class="math-op">=</span> <span class="math-val">${ohms} Ω</span>`);
+      box.innerHTML = mEq(`${mVar('R')} <span class="math-op">=</span> ${mFrac(mVar('V', 'R'), mVar('I'))} <span class="math-op">=</span> ${mFrac(`<span class="math-val">${vDrop.toFixed(1)} V</span>`, `<span class="math-val">${Math.max(0.001, amps).toFixed(3)} A</span>`)} <span class="math-op">=</span> <span class="math-val">${ohms} Ω</span>`);
       desc.textContent = 'Si conoces el voltaje sobrante y la corriente medida, obtienes exactamente la resistencia presente.';
+    } else if (eqFocus === 'P') {
+      box.innerHTML = mEq(`${mVar('P', 'R')} <span class="math-op">=</span> ${mVar('I')}<sup>2</sup> <span class="math-op">·</span> ${mVar('R')} <span class="math-op">=</span> <span class="math-val">(${amps.toFixed(3)} A)<sup>2</sup></span> <span class="math-op">·</span> <span class="math-val">${ohms} Ω</span> <span class="math-op">=</span> <span class="math-val">${pr.toFixed(3)} W</span>`);
+      desc.textContent = `Compara esta potencia disipada contra el límite elegido (${ratedW} W). Si lo supera, la resistencia se quema.`;
     } else {
       box.innerHTML = mEq(`${mVar('R', 'rec')} <span class="math-op">=</span> ${mFrac(`${mVar('V', 'fuente')} <span class="math-op">−</span> ${mVar('V', 'LED')}`, '<span class="math-val">0.015 A</span>')} <span class="math-op">=</span> ${mFrac(`<span class="math-val">${sourceV} V − ${meta.vf} V</span>`, '<span class="math-val">0.015 A</span>')} <span class="math-op">≈</span> <span class="math-val">${recOhms} Ω</span>`);
       desc.textContent = 'Con esta ecuación calculas la resistencia mínima recomendada para fijar unos seguros 15 mA.';
@@ -275,21 +603,29 @@ function mountModOhm(): void {
   const applyVisuals = () => {
     const meta = LED_META[ledKey];
     const vDrop = Math.max(0, sourceV - meta.vf);
-    const ma = (vDrop / ohms) * 1000;
+    const amps = vDrop / ohms;
+    const ma = amps * 1000;
+    const pr = amps * amps * ohms;
     const recOhms = Math.max(47, Math.round(vDrop / 0.015));
+    const wTag = ratedW === 0.125 ? '1/8 W' : ratedW === 0.25 ? '1/4 W' : ratedW === 0.5 ? '1/2 W' : '1 W';
 
     const bands = resistorBandsForOhms(ohms);
     bands.forEach((hex, i) => {
       document.getElementById(`ohm-b${i}`)?.setAttribute('fill', hexCss(hex));
     });
     document.getElementById('ohm-r-val')!.textContent = formatOhms(ohms);
-    document.getElementById('ohm-svg-res-lbl')!.textContent = `${formatOhms(ohms)} · ±5%`;
+    document.getElementById('ohm-w-lbl')!.textContent = `${wTag} (${ratedW.toFixed(3)} W)`;
+    document.getElementById('ohm-svg-res-lbl')!.textContent = `${formatOhms(ohms)} · ${wTag} · ${pr.toFixed(2)}W`;
 
     const flow = document.getElementById('ohm-flow') as HTMLElement;
     const halo = document.getElementById('ohm-led-halo')!;
     const dome = document.getElementById('ohm-led-dome')!;
     const sparks = document.getElementById('ohm-sparks')!;
     const smoke = document.getElementById('ohm-smoke-grp')!;
+    const rGlow = document.getElementById('ohm-res-glow')!;
+    const rBody = document.getElementById('ohm-res-body')!;
+    const rSparks = document.getElementById('ohm-res-sparks')!;
+    const rSmoke = document.getElementById('ohm-res-smoke')!;
     const banner = document.getElementById('ohm-safety-banner')!;
     const replaceBtn = document.getElementById('btn-replace-led') as HTMLButtonElement;
     const maText = document.getElementById('ohm-led-ma')!;
@@ -301,63 +637,94 @@ function mountModOhm(): void {
         ledState = 'burned';
         applyVisuals();
       }, 650);
+    } else if (resState === 'ok' && pr > ratedW) {
+      resState = 'overheating';
+      if (burnTimer) clearTimeout(burnTimer);
+      burnTimer = window.setTimeout(() => {
+        resState = 'burned';
+        applyVisuals();
+      }, 700);
     }
 
+    const broken = ledState === 'burned' || resState === 'burned';
+    if (broken) flow.classList.add('is-stopped');
+    else if (vDrop > 0.1) flow.classList.remove('is-stopped');
+
     if (ledState === 'overloading') {
-      flow.classList.remove('is-stopped');
       flow.style.setProperty('--flow-speed', '0.18s');
       halo.setAttribute('fill', '#fef08a');
       halo.setAttribute('opacity', '0.95');
       dome.setAttribute('fill', '#ffffff');
       sparks.setAttribute('opacity', '1');
       smoke.setAttribute('opacity', '0');
-      maText.textContent = `${ma.toFixed(1)} mA ¡SOBRECARGA!`;
-      banner.className = 'status-banner is-bad';
-      banner.textContent = `¡Sobrecorriente extrema (${ma.toFixed(1)} mA)! El LED está brillando al máximo antes de fundirse...`;
-      replaceBtn.hidden = true;
     } else if (ledState === 'burned') {
-      flow.classList.add('is-stopped');
       halo.setAttribute('opacity', '0');
       dome.setAttribute('fill', '#1f2937');
       sparks.setAttribute('opacity', '0');
       smoke.setAttribute('opacity', '1');
-      maText.textContent = '0.0 mA (Abierto)';
-      banner.className = 'status-banner is-bad';
-      banner.textContent = `¡LED QUEMADO! Aunque subas la resistencia a ${recOhms} Ω, el componente ya se dañó. Pulsa "Reemplazar LED".`;
-      replaceBtn.hidden = false;
-    } else if (vDrop <= 0.1) {
-      flow.classList.add('is-stopped');
+    } else if (vDrop <= 0.1 || resState === 'burned') {
       halo.setAttribute('opacity', '0');
       dome.setAttribute('fill', '#475569');
       sparks.setAttribute('opacity', '0');
       smoke.setAttribute('opacity', '0');
+    } else {
+      halo.setAttribute('fill', meta.color);
+      halo.setAttribute('opacity', String(Math.min(0.8, 0.18 + ma / 25)));
+      dome.setAttribute('fill', meta.color);
+      sparks.setAttribute('opacity', '0');
+      smoke.setAttribute('opacity', '0');
+    }
+
+    if (resState === 'overheating') {
+      rGlow.setAttribute('opacity', '0.88');
+      rBody.setAttribute('fill', '#fb923c');
+      rSparks.setAttribute('opacity', '1');
+      rSmoke.setAttribute('opacity', '0');
+    } else if (resState === 'burned') {
+      rGlow.setAttribute('opacity', '0');
+      rBody.setAttribute('fill', '#1c1917');
+      rSparks.setAttribute('opacity', '0');
+      rSmoke.setAttribute('opacity', '1');
+    } else {
+      rGlow.setAttribute('opacity', pr > ratedW * 0.7 ? '0.35' : '0');
+      rBody.setAttribute('fill', '#dec8a0');
+      rSparks.setAttribute('opacity', '0');
+      rSmoke.setAttribute('opacity', '0');
+    }
+
+    if (broken) {
+      maText.textContent = '0.0 mA (Abierto)';
+      banner.className = 'status-banner is-bad';
+      banner.textContent = resState === 'burned'
+        ? `¡RESISTENCIA QUEMADA (${pr.toFixed(2)} W > ${wTag})! El exceso de potencia la fundió. Reemplaza componentes.`
+        : `¡LED QUEMADO (${ma.toFixed(1)} mA > 30 mA)! Sube a ≥ ${recOhms} Ω y pulsa "Reemplazar componentes quemados".`;
+      replaceBtn.hidden = false;
+    } else if (ledState === 'overloading' || resState === 'overheating') {
+      maText.textContent = `${ma.toFixed(1)} mA ¡SOBRECARGA!`;
+      banner.className = 'status-banner is-bad';
+      banner.textContent = resState === 'overheating'
+        ? `¡Sobrecalentamiento (${pr.toFixed(2)} W > ${wTag})! La resistencia está ardiendo...`
+        : `¡Sobrecorriente extrema (${ma.toFixed(1)} mA)! El LED está brillando antes de fundirse...`;
+      replaceBtn.hidden = true;
+    } else if (vDrop <= 0.1) {
+      flow.classList.add('is-stopped');
       maText.textContent = '0.0 mA';
       banner.className = 'status-banner is-warn';
-      banner.textContent = `Voltaje insuficiente (${sourceV} V < ${meta.vf} V del LED). El LED no alcanza a conducir.`;
+      banner.textContent = `Voltaje insuficiente (${sourceV} V < ${meta.vf} V del LED).`;
       replaceBtn.hidden = true;
-    } else if (ma > 20) {
-      flow.classList.remove('is-stopped');
+    } else if (ma > 20 || pr > ratedW * 0.7) {
       flow.style.setProperty('--flow-speed', '0.45s');
-      halo.setAttribute('fill', meta.color);
-      halo.setAttribute('opacity', '0.78');
-      dome.setAttribute('fill', meta.color);
-      sparks.setAttribute('opacity', '0');
-      smoke.setAttribute('opacity', '0');
       maText.textContent = `${ma.toFixed(1)} mA`;
       banner.className = 'status-banner is-warn';
-      banner.textContent = `Al límite del pin Arduino (${ma.toFixed(1)} mA). Sube a ≥ ${recOhms} Ω para trabajar seguro bajo 20 mA.`;
+      banner.textContent = pr > ratedW * 0.7
+        ? `Resistencia caliente (${pr.toFixed(3)} W de ${ratedW} W). Considera usar una de mayor potencia.`
+        : `Al límite del pin Arduino (${ma.toFixed(1)} mA). Sube a ≥ ${recOhms} Ω para trabajar bajo 20 mA.`;
       replaceBtn.hidden = true;
     } else {
-      flow.classList.remove('is-stopped');
       flow.style.setProperty('--flow-speed', `${Math.max(0.45, Math.min(2.6, 18 / Math.max(1, ma))).toFixed(2)}s`);
-      halo.setAttribute('fill', meta.color);
-      halo.setAttribute('opacity', String(Math.min(0.75, 0.18 + ma / 25)));
-      dome.setAttribute('fill', meta.color);
-      sparks.setAttribute('opacity', '0');
-      smoke.setAttribute('opacity', '0');
       maText.textContent = `${ma.toFixed(1)} mA`;
       banner.className = 'status-banner is-ok';
-      banner.textContent = `Corriente segura (${ma.toFixed(1)} mA) — Brillo óptimo y pin protegido.`;
+      banner.textContent = `Seguro: ${ma.toFixed(1)} mA en LED · ${pr.toFixed(3)} W en resistencia ${wTag}.`;
       replaceBtn.hidden = true;
     }
 
@@ -391,6 +758,15 @@ function mountModOhm(): void {
     });
   });
 
+  root.querySelectorAll<HTMLButtonElement>('[data-ohm-w]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('[data-ohm-w]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      ratedW = Number(btn.dataset.ohmW);
+      applyVisuals();
+    });
+  });
+
   document.getElementById('ohm-r-slider')?.addEventListener('input', (e) => {
     ohms = Number((e.target as HTMLInputElement).value);
     applyVisuals();
@@ -399,6 +775,7 @@ function mountModOhm(): void {
   document.getElementById('btn-replace-led')?.addEventListener('click', () => {
     if (burnTimer) clearTimeout(burnTimer);
     ledState = 'ok';
+    resState = 'ok';
     applyVisuals();
   });
 
@@ -406,7 +783,607 @@ function mountModOhm(): void {
 }
 
 /* =========================================================================
- * MÓDULO 3: Circuitos en Serie vs. Paralelo interactivos
+ * MÓDULO 3: Diagramas Eléctricos y Simbología Electrónica (Teoría + Animación)
+ * ========================================================================= */
+function mountModDiagramas(): void {
+  const root = document.getElementById('root-mod-diagramas');
+  if (!root) return;
+
+  type SymId = 'fuente' | 'resistor' | 'diodo' | 'led' | 'switch' | 'pot' | 'cap' | 'npn' | 'nodos';
+  interface SymDef {
+    id: SymId;
+    label: string;
+    title: string;
+    pins: string;
+    theory: string;
+    arduinoTip: string;
+    actionLabel: string;
+    theorySvg: string;
+    renderAnim: (alt: boolean, sliderVal: number) => { svg: string; status: string };
+  }
+
+  const SYMBOLS: SymDef[] = [
+    {
+      id: 'fuente',
+      label: 'Fuente DC / GND',
+      title: 'Fuente de alimentación DC y Tierra (GND)',
+      pins: '+ (VCC / 5V / 3.3V) · − (GND / 0 V)',
+      theory: 'La pila o fuente DC entrega voltaje continuo. La línea larga representa el polo positivo (+) y la corta el negativo (−). El símbolo de tierra (GND) es el punto de referencia de 0 V común para todo el circuito.',
+      arduinoTip: 'En Arduino todos los GND deben estar unidos entre sí (protoboard, sensores y fuentes externas) para que compartan la misma referencia.',
+      actionLabel: 'Alternar 5 V / 3.3 V',
+      theorySvg: `
+        <svg viewBox="0 0 260 110" aria-label="Símbolo Fuente DC y Tierra GND">
+          <line x1="25" y1="55" x2="66" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="66" y1="28" x2="66" y2="82" stroke="#dc2626" stroke-width="4"/>
+          <line x1="80" y1="41" x2="80" y2="69" stroke="#1c2b5a" stroke-width="4"/>
+          <line x1="80" y1="55" x2="122" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <text x="54" y="24" fill="#dc2626" font-family="monospace" font-size="13" font-weight="bold">+</text>
+          <text x="86" y="24" fill="#1c2b5a" font-family="monospace" font-size="13" font-weight="bold">−</text>
+          <text x="72" y="99" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Fuente DC</text>
+          <line x1="195" y1="26" x2="195" y2="62" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="173" y1="62" x2="217" y2="62" stroke="#1c2b5a" stroke-width="3.5"/>
+          <line x1="181" y1="71" x2="209" y2="71" stroke="#1c2b5a" stroke-width="3.5"/>
+          <line x1="189" y1="80" x2="201" y2="80" stroke="#1c2b5a" stroke-width="3.5"/>
+          <text x="195" y="99" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Tierra (GND)</text>
+        </svg>`,
+      renderAnim: (alt) => {
+        const v = alt ? '3.3 V' : '5.0 V';
+        const col = alt ? '#8b5cf6' : '#ef4444';
+        return {
+          svg: `
+            <svg viewBox="0 0 380 180">
+              <rect x="48" y="34" width="284" height="106" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
+              <rect class="electron-flow" style="--flow-speed:${alt ? '1.35s' : '0.85s'}" x="48" y="34" width="284" height="106" rx="14" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
+              <g transform="translate(22,56)">
+                <rect x="0" y="0" width="54" height="62" rx="8" fill="#0f172a" stroke="${col}" stroke-width="2.5"/>
+                <line x1="18" y1="14" x2="18" y2="48" stroke="${col}" stroke-width="3.5"/>
+                <line x1="34" y1="22" x2="34" y2="40" stroke="#94a3b8" stroke-width="3.5"/>
+                <text x="27" y="-8" text-anchor="middle" fill="#fff" font-family="monospace" font-size="12" font-weight="bold">${v}</text>
+              </g>
+              <g transform="translate(304,68)">
+                <line x1="26" y1="0" x2="26" y2="26" stroke="#38bdf8" stroke-width="3"/>
+                <line x1="10" y1="26" x2="42" y2="26" stroke="#fff" stroke-width="3"/>
+                <line x1="15" y1="33" x2="37" y2="33" stroke="#fff" stroke-width="3"/>
+                <line x1="21" y1="40" x2="31" y2="40" stroke="#fff" stroke-width="3"/>
+                <text x="26" y="56" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="11">GND 0V</text>
+              </g>
+            </svg>`,
+          status: `Fuente configurada en ${v} respecto a GND (0 V). Los sensores 3.3 V (como BME280 o ESP32) requieren lógica de 3.3 V.`,
+        };
+      },
+    },
+    {
+      id: 'resistor',
+      label: 'Resistencia',
+      title: 'Resistencia (Norma ANSI zigzag y IEC rectangular)',
+      pins: 'Sin polaridad (P1 y P2 son equivalentes)',
+      theory: 'Limita la corriente y divide voltajes. En esquemas americanos (ANSI) se dibuja como un zigzag; en esquemas europeos/internacionales (IEC) como un rectángulo.',
+      arduinoTip: 'No tiene polaridad: da igual en qué sentido la insertes en la protoboard.',
+      actionLabel: 'Alternar norma ANSI / IEC',
+      theorySvg: `
+        <svg viewBox="0 0 260 110" aria-label="Símbolo de resistencia ANSI e IEC">
+          <path d="M22 44 L44 44 L50 30 L60 58 L70 30 L80 58 L90 30 L100 44 L120 44" fill="none" stroke="#1c2b5a" stroke-width="3" stroke-linejoin="round"/>
+          <text x="71" y="84" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">ANSI (Zigzag)</text>
+          <line x1="144" y1="44" x2="164" y2="44" stroke="#1c2b5a" stroke-width="3"/>
+          <rect x="164" y="31" width="52" height="26" fill="none" stroke="#ff7a1a" stroke-width="3"/>
+          <line x1="216" y1="44" x2="238" y2="44" stroke="#1c2b5a" stroke-width="3"/>
+          <text x="190" y="84" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">IEC (Rectángulo)</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <line x1="28" y1="90" x2="128" y2="90" stroke="#38bdf8" stroke-width="5"/>
+            <line class="electron-flow" style="--flow-speed:0.7s" x1="28" y1="90" x2="128" y2="90" stroke="#fff" stroke-width="2.5"/>
+            ${
+              alt
+                ? `<rect x="128" y="66" width="124" height="48" rx="4" fill="#1e293b" stroke="#ff7a1a" stroke-width="3.5"/>
+                   <text x="190" y="95" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="14" font-weight="bold">IEC · 220 Ω</text>`
+                : `<path d="M128 90 L146 90 L158 62 L176 118 L194 62 L212 118 L230 62 L242 90 L252 90" fill="none" stroke="#ff7a1a" stroke-width="4" stroke-linejoin="round"/>
+                   <text x="190" y="144" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="14" font-weight="bold">ANSI · 220 Ω</text>`
+            }
+            <line x1="252" y1="90" x2="352" y2="90" stroke="#38bdf8" stroke-width="5"/>
+            <line class="electron-flow" style="--flow-speed:1.5s" x1="252" y1="90" x2="352" y2="90" stroke="#7dd3fc" stroke-width="2.5"/>
+            <text x="78" y="68" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="11">Alta presión</text>
+            <text x="302" y="68" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="11">Corriente frenada</text>
+          </svg>`,
+        status: alt
+          ? 'Norma IEC: rectángulo estándar usado en Europa y planos industriales.'
+          : 'Norma ANSI/IEEE: línea zigzag clásica muy común en tutoriales de Arduino.',
+      }),
+    },
+    {
+      id: 'diodo',
+      label: 'Diodo',
+      title: 'Diodo Rectificador (Válvula antirretorno eléctrica)',
+      pins: 'Ánodo (+) → Cátodo (−, franja plateada)',
+      theory: 'Permite el paso de corriente en un único sentido (desde Ánodo hacia Cátodo, siguiendo la flecha del triángulo) y bloquea por completo la corriente en sentido inverso.',
+      arduinoTip: 'Si lo conectas al revés no conduce; úsalo en paralelo con relés o motores (diodo flyback) para proteger el Arduino de picos inversos.',
+      actionLabel: 'Invertir polaridad del diodo',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <line x1="40" y1="55" x2="106" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <polygon points="106,33 106,77 148,55" fill="#1c2b5a"/>
+          <line x1="150" y1="31" x2="150" y2="79" stroke="#dc2626" stroke-width="5"/>
+          <line x1="150" y1="55" x2="218" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <text x="64" y="42" fill="#1c2b5a" font-family="monospace" font-size="12" font-weight="bold">Ánodo (+)</text>
+          <text x="160" y="42" fill="#dc2626" font-family="monospace" font-size="12" font-weight="bold">Cátodo (−)</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <rect x="44" y="40" width="292" height="100" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
+            <rect class="electron-flow ${alt ? 'is-stopped' : ''}" style="--flow-speed:0.9s" x="44" y="40" width="292" height="100" rx="14" fill="none" stroke="${alt ? '#ef4444' : '#22c55e'}" stroke-width="3.5"/>
+            <g transform="translate(154,18)">
+              ${
+                alt
+                  ? `<line x1="10" y1="4" x2="10" y2="40" stroke="#ef4444" stroke-width="5"/>
+                     <polygon points="54,4 54,40 12,22" fill="#475569"/>
+                     <text x="34" y="-4" text-anchor="middle" fill="#fca5a5" font-family="monospace" font-size="11" font-weight="bold">INVERSA (BLOQUEA)</text>`
+                  : `<polygon points="10,4 10,40 52,22" fill="#22c55e"/>
+                     <line x1="54" y1="4" x2="54" y2="40" stroke="#fff" stroke-width="5"/>
+                     <text x="34" y="-4" text-anchor="middle" fill="#86efac" font-family="monospace" font-size="11" font-weight="bold">DIRECTA (CONDUCE →)</text>`
+              }
+            </g>
+            <text x="190" y="102" text-anchor="middle" fill="${alt ? '#fca5a5' : '#86efac'}" font-family="monospace" font-size="13" font-weight="bold">
+              ${alt ? '0.0 mA — La barrera detiene los electrones' : 'Corriente fluyendo por el triángulo →'}
+            </text>
+          </svg>`,
+        status: alt
+          ? 'Polarización INVERSA: la barra vertical (Cátodo) apunta contra el positivo y bloquea la corriente (0 mA).'
+          : 'Polarización DIRECTA: el Ánodo recibe (+) y el Cátodo (−); la corriente cruza con ~0.7 V de caída.',
+      }),
+    },
+    {
+      id: 'led',
+      label: 'LED',
+      title: 'Diodo Emisor de Luz (LED)',
+      pins: 'Ánodo (pata larga +) · Cátodo (pata corta / lado plano −)',
+      theory: 'Es un diodo especial que emite fotones de luz cuando circula corriente en sentido directo. Las dos flechas saliendo del triángulo representan la emisión de luz.',
+      arduinoTip: 'Siempre exige resistencia en serie (220 Ω – 330 Ω en 5 V). Si lo conectas invertido no enciende.',
+      actionLabel: 'Invertir LED (+ / −)',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <line x1="40" y1="62" x2="104" y2="62" stroke="#1c2b5a" stroke-width="3"/>
+          <polygon points="104,40 104,84 144,62" fill="#ef4444"/>
+          <line x1="146" y1="38" x2="146" y2="86" stroke="#1c2b5a" stroke-width="4.5"/>
+          <line x1="146" y1="62" x2="215" y2="62" stroke="#1c2b5a" stroke-width="3"/>
+          <path d="M126 32 L144 14 M140 14 L144 14 L144 18" stroke="#ff7a1a" stroke-width="2.5" fill="none"/>
+          <path d="M142 36 L160 18 M156 18 L160 18 L160 22" stroke="#ff7a1a" stroke-width="2.5" fill="none"/>
+          <text x="64" y="49" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">Ánodo +</text>
+          <text x="158" y="49" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">Cátodo −</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <rect x="44" y="46" width="292" height="94" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
+            <rect class="electron-flow ${alt ? 'is-stopped' : ''}" style="--flow-speed:0.85s" x="44" y="46" width="292" height="94" rx="14" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
+            <g transform="translate(160,18)">
+              ${
+                !alt
+                  ? `<circle cx="30" cy="28" r="34" fill="#ef4444" opacity="0.38"/>
+                     <polygon points="10,10 10,46 48,28" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>
+                     <line x1="50" y1="10" x2="50" y2="46" stroke="#fff" stroke-width="4"/>
+                     <path d="M24 2 L38 -12 M34 -12 L38 -12 L38 -8" stroke="#fef08a" stroke-width="2.5" fill="none"/>
+                     <path d="M40 6 L54 -8 M50 -8 L54 -8 L54 -4" stroke="#fef08a" stroke-width="2.5" fill="none"/>`
+                  : `<line x1="10" y1="10" x2="10" y2="46" stroke="#94a3b8" stroke-width="4"/>
+                     <polygon points="50,10 50,46 12,28" fill="#475569"/>`
+              }
+            </g>
+            <text x="190" y="108" text-anchor="middle" fill="${alt ? '#fca5a5' : '#fef08a'}" font-family="monospace" font-size="13" font-weight="bold">
+              ${alt ? 'LED apagado (polaridad invertida)' : '¡LED encendido emitiendo luz!'}
+            </text>
+          </svg>`,
+        status: alt
+          ? 'Cátodo conectado al positivo: el LED actúa como barrera cerrada y no emite luz.'
+          : 'Ánodo a +5 V (vía R) y Cátodo a GND: emite luz continua de ~15 mA.',
+      }),
+    },
+    {
+      id: 'switch',
+      label: 'Interruptor',
+      title: 'Interruptor / Pulsador NA (Normalmente Abierto)',
+      pins: 'Entrada COM y Salida NO (cierra el contacto al presionar)',
+      theory: 'Abre o cierra físicamente un camino conductor. Cuando está abierto hay un espacio de aire (resistencia infinita = 0 A). Al cerrarlo, los electrones circulan.',
+      arduinoTip: 'Para leer un pulsador en Arduino usa siempre INPUT_PULLUP o resistencia externa para evitar lecturas locas (pin flotante).',
+      actionLabel: 'Abrir / Cerrar interruptor',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <line x1="35" y1="60" x2="98" y2="60" stroke="#1c2b5a" stroke-width="3.5"/>
+          <circle cx="98" cy="60" r="5" fill="#1c2b5a"/>
+          <line x1="98" y1="60" x2="156" y2="32" stroke="#ff7a1a" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="160" cy="60" r="5" fill="#1c2b5a"/>
+          <line x1="160" y1="60" x2="225" y2="60" stroke="#1c2b5a" stroke-width="3.5"/>
+          <text x="130" y="92" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Circuito abierto (0 A)</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <rect x="44" y="42" width="292" height="96" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
+            <rect class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:0.85s" x="44" y="42" width="292" height="96" rx="14" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
+            <rect x="148" y="24" width="84" height="36" fill="#141c33"/>
+            <circle cx="152" cy="42" r="6" fill="#ff7a1a"/>
+            <circle cx="228" cy="42" r="6" fill="#ff7a1a"/>
+            <line x1="152" y1="42" x2="228" y2="${alt ? '42' : '16'}" stroke="#fbbf24" stroke-width="5" stroke-linecap="round"/>
+            <text x="190" y="98" text-anchor="middle" fill="${alt ? '#86efac' : '#cbd5e1'}" font-family="monospace" font-size="13" font-weight="bold">
+              ${alt ? 'CERRADO → Paso libre de corriente' : 'ABIERTO → Camino cortado (0 mA)'}
+            </text>
+          </svg>`,
+        status: alt
+          ? 'Contacto cerrado: el lazo queda completo y la carga recibe corriente.'
+          : 'Contacto abierto: el puente metálico está levantado; no hay circulación.',
+      }),
+    },
+    {
+      id: 'pot',
+      label: 'Potenciómetro',
+      title: 'Potenciómetro (Divisor de tensión variable)',
+      pins: 'Extremo A (5V) · Cursor Central (Salida A0) · Extremo B (GND)',
+      theory: 'Es una resistencia con un tercer contacto móvil (flecha). Al girar la perilla, desplazas la flecha y entregas un voltaje analógico proporcional entre 0 V y 5 V.',
+      arduinoTip: 'Conecta el pin central a A0–A5 para leer valores de 0 a 1023 con analogRead().',
+      actionLabel: 'Mover cursor',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <path d="M40 62 L66 62 L74 44 L86 80 L98 44 L110 80 L122 44 L134 80 L144 62 L175 62" fill="none" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="108" y1="16" x2="108" y2="39" stroke="#ff7a1a" stroke-width="3.5"/>
+          <polygon points="101,35 115,35 108,46" fill="#ff7a1a"/>
+          <text x="195" y="42" fill="#ff7a1a" font-family="monospace" font-size="11" font-weight="bold">Cursor (A0)</text>
+          <text x="108" y="99" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">5V — [R] — GND</text>
+        </svg>`,
+      renderAnim: (_alt, pct) => {
+        const vOut = (pct / 100) * 5;
+        const xWiper = 95 + (pct / 100) * 190;
+        return {
+          svg: `
+            <svg viewBox="0 0 380 180">
+              <text x="68" y="88" text-anchor="end" fill="#f87171" font-family="monospace" font-size="12" font-weight="bold">0 V</text>
+              <line x1="76" y1="84" x2="95" y2="84" stroke="#64748b" stroke-width="4"/>
+              <rect x="95" y="64" width="190" height="40" rx="6" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+              <line x1="285" y1="84" x2="306" y2="84" stroke="#ef4444" stroke-width="4"/>
+              <text x="314" y="88" fill="#f87171" font-family="monospace" font-size="12" font-weight="bold">5.0 V</text>
+              <g transform="translate(${xWiper}, 26)">
+                <line x1="0" y1="0" x2="0" y2="32" stroke="#ff7a1a" stroke-width="4"/>
+                <polygon points="-7,28 7,28 0,40" fill="#ff7a1a"/>
+                <text x="0" y="-6" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="12" font-weight="bold">${vOut.toFixed(2)} V</text>
+              </g>
+              <text x="190" y="142" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="13" font-weight="bold">
+                analogRead(A0) = ${Math.round((pct / 100) * 1023)}
+              </text>
+            </svg>`,
+          status: `Cursor al ${pct}%: divide la tensión entregando ${vOut.toFixed(2)} V en el pin central.`,
+        };
+      },
+    },
+    {
+      id: 'cap',
+      label: 'Condensador',
+      title: 'Condensador / Capacitor (Almacén rápido de energía)',
+      pins: 'No polarizado (cerámico) o Polarizado (+ / −, electrolítico)',
+      theory: 'Dos placas paralelas separadas por un aislante. Almacena energía en un campo eléctrico y suaviza caídas bruscas de voltaje como un pequeño estanque auxiliar.',
+      arduinoTip: 'Un condensador electrolítico de 100 µF cerca del servo evita que el Arduino se reinicie cuando el motor arranca.',
+      actionLabel: 'Cargar / Descargar capacitor',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <line x1="40" y1="55" x2="112" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="112" y1="26" x2="112" y2="84" stroke="#1c2b5a" stroke-width="4"/>
+          <line x1="128" y1="26" x2="128" y2="84" stroke="#1c2b5a" stroke-width="4"/>
+          <line x1="128" y1="55" x2="205" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <text x="120" y="102" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="11">Placas separadas (C)</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <rect x="64" y="42" width="252" height="96" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
+            <rect x="166" y="18" width="48" height="48" fill="#141c33"/>
+            <line x1="176" y1="20" x2="176" y2="66" stroke="${alt ? '#22c55e' : '#94a3b8'}" stroke-width="5"/>
+            <line x1="204" y1="20" x2="204" y2="66" stroke="${alt ? '#38bdf8' : '#94a3b8'}" stroke-width="5"/>
+            ${alt ? '<text x="162" y="34" fill="#fca5a5" font-family="monospace" font-size="14" font-weight="bold">+</text><text x="210" y="34" fill="#7dd3fc" font-family="monospace" font-size="14" font-weight="bold">−</text>' : ''}
+            <rect x="115" y="104" width="150" height="16" rx="8" fill="#1e293b" stroke="#475569"/>
+            <rect x="117" y="106" width="${alt ? '146' : '16'}" height="12" rx="6" fill="${alt ? '#22c55e' : '#64748b'}"/>
+            <text x="190" y="92" text-anchor="middle" fill="#fff" font-family="monospace" font-size="12" font-weight="bold">
+              ${alt ? 'CARGADO: 5.0 V almacenados entre placas' : 'DESCARGADO: 0.0 V en espera'}
+            </text>
+          </svg>`,
+        status: alt
+          ? 'Las cargas (+) y (−) se acumulan en placas opuestas manteniendo 5.0 V disponibles al instante.'
+          : 'Sin voltaje aplicado las placas están neutras (0.0 V).',
+      }),
+    },
+    {
+      id: 'npn',
+      label: 'Transistor NPN',
+      title: 'Transistor NPN (Interruptor electrónico controlado por Base)',
+      pins: 'Base (B · señal Arduino) · Colector (C · carga) · Emisor (E · GND)',
+      theory: 'Una corriente minúscula que entra por la Base (pin Arduino) abre el camino principal para que una corriente mucho mayor pase del Colector al Emisor.',
+      arduinoTip: 'Indispensable para encender motores DC, tiras LED o relés de 12 V que quemarían un pin de 40 mA del Arduino.',
+      actionLabel: 'Activar / Apagar Base (pin 9)',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <circle cx="130" cy="55" r="34" fill="none" stroke="#1c2b5a" stroke-width="2.5"/>
+          <line x1="60" y1="55" x2="118" y2="55" stroke="#ff7a1a" stroke-width="3.5"/>
+          <line x1="118" y1="35" x2="118" y2="75" stroke="#1c2b5a" stroke-width="5"/>
+          <line x1="118" y1="45" x2="152" y2="20" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="118" y1="65" x2="152" y2="90" stroke="#1c2b5a" stroke-width="3"/>
+          <polygon points="140,86 152,90 147,78" fill="#1c2b5a"/>
+          <text x="52" y="45" fill="#ff7a1a" font-family="monospace" font-size="11" font-weight="bold">B</text>
+          <text x="158" y="24" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">C</text>
+          <text x="158" y="96" fill="#1c2b5a" font-family="monospace" font-size="11" font-weight="bold">E</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <circle cx="190" cy="90" r="52" fill="#0f172a" stroke="#475569" stroke-width="2.5"/>
+            <line x1="176" y1="58" x2="176" y2="122" stroke="#fff" stroke-width="6"/>
+            <!-- Base -->
+            <line x1="42" y1="90" x2="176" y2="90" stroke="${alt ? '#ff7a1a' : '#475569'}" stroke-width="4"/>
+            <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:1.2s" x1="42" y1="90" x2="176" y2="90" stroke="#ffb066" stroke-width="2.5"/>
+            <!-- Colector -> Emisor -->
+            <line x1="176" y1="74" x2="264" y2="26" stroke="${alt ? '#22c55e' : '#475569'}" stroke-width="6"/>
+            <line x1="176" y1="106" x2="264" y2="154" stroke="${alt ? '#22c55e' : '#475569'}" stroke-width="6"/>
+            <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:0.45s" x1="264" y1="26" x2="176" y2="74" stroke="#86efac" stroke-width="3"/>
+            <line class="electron-flow ${alt ? '' : 'is-stopped'}" style="--flow-speed:0.45s" x1="176" y1="106" x2="264" y2="154" stroke="#86efac" stroke-width="3"/>
+            <text x="52" y="75" fill="#ffb066" font-family="monospace" font-size="11">Base: ${alt ? '5 V (2 mA)' : '0 V (0 mA)'}</text>
+            <text x="276" y="34" fill="#86efac" font-family="monospace" font-size="11">Colector (Carga)</text>
+            <text x="276" y="156" fill="#cbd5e1" font-family="monospace" font-size="11">Emisor (GND)</text>
+          </svg>`,
+        status: alt
+          ? 'Base activada (HIGH): 2 mA en Base permiten conducir 500+ mA entre Colector y Emisor.'
+          : 'Base en LOW (0 V): el transistor está en corte; la carga permanece apagada.',
+      }),
+    },
+    {
+      id: 'nodos',
+      label: 'Nodos y Cruces',
+      title: '¿Cuándo dos cables están conectados en un plano?',
+      pins: 'Punto negro (Nodo = SÍ hay unión) · Sin punto o puente (Cruce = NO se tocan)',
+      theory: 'En los diagramas eléctricos los cables se cruzan visualmente. Solo existe conexión eléctrica real donde hay un punto sólido (nodo). Si no hay punto, los cables pasan uno encima del otro aislados.',
+      arduinoTip: 'Antes de armar una protoboard real, marca los nodos de tu plano para saber qué puntos comparten el mismo potencial.',
+      actionLabel: 'Cambiar cruce ↔ nodo unido',
+      theorySvg: `
+        <svg viewBox="0 0 260 110">
+          <line x1="30" y1="55" x2="110" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <line x1="70" y1="20" x2="70" y2="90" stroke="#1c2b5a" stroke-width="3"/>
+          <circle cx="70" cy="55" r="6" fill="#ff7a1a"/>
+          <text x="70" y="103" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="10.5">CON NODO (Unidos)</text>
+          <line x1="150" y1="55" x2="230" y2="55" stroke="#1c2b5a" stroke-width="3"/>
+          <path d="M190 20 L190 45 A10 10 0 0 1 190 65 L190 90" fill="none" stroke="#1c2b5a" stroke-width="3"/>
+          <text x="190" y="103" text-anchor="middle" fill="#1c2b5a" font-family="monospace" font-size="10.5">CRUCE (Sin unión)</text>
+        </svg>`,
+      renderAnim: (alt) => ({
+        svg: `
+          <svg viewBox="0 0 380 180">
+            <line x1="56" y1="90" x2="324" y2="90" stroke="#38bdf8" stroke-width="5"/>
+            <line class="electron-flow" style="--flow-speed:0.9s" x1="56" y1="90" x2="324" y2="90" stroke="#fff" stroke-width="2.5"/>
+            <line x1="190" y1="22" x2="190" y2="158" stroke="${alt ? '#38bdf8' : '#64748b'}" stroke-width="5"/>
+            ${alt ? '<line class="electron-flow" style="--flow-speed:0.9s" x1="190" y1="22" x2="190" y2="158" stroke="#fff" stroke-width="2.5"/><circle cx="190" cy="90" r="10" fill="#ff7a1a" stroke="#fff" stroke-width="2"/>' : '<path d="M190 74 A16 16 0 0 1 190 106" fill="#141c33" stroke="#94a3b8" stroke-width="5"/>'}
+            <text x="190" y="172" text-anchor="middle" fill="${alt ? '#ffb066' : '#cbd5e1'}" font-family="monospace" font-size="12" font-weight="bold">
+              ${alt ? 'NODO UNIDO: ambos cables comparten la señal' : 'CRUCE AISLADO: señales independientes'}
+            </text>
+          </svg>`,
+        status: alt
+          ? 'Con punto de nodo: la corriente se reparte por ambas líneas.'
+          : 'Sin punto de nodo (puente): los dos cables no tienen contacto eléctrico entre sí.',
+      }),
+    },
+  ];
+
+  let activeId: SymId = 'fuente';
+  let altMode = false;
+  let potPct = 50;
+
+  // Estado del laboratorio completo
+  let labSwitchClosed = true;
+  let labDiodeForward = true;
+  let labFocusText = 'Haz clic sobre cualquier símbolo del esquema (Fuente, Interruptor S1, R1, Diodo o LED) para leer su función.';
+
+  root.innerHTML = `
+    <div class="diag-symbol-tabs" id="diag-sym-tabs">
+      ${SYMBOLS.map((s, i) => `<button type="button" class="seg-btn ${i === 0 ? 'is-active' : ''}" data-diag-sym="${s.id}">${s.label}</button>`).join('')}
+    </div>
+
+    <div class="viz-grid-2">
+      <div class="viz-card" id="diag-theory-card"></div>
+      <div class="viz-card" id="diag-anim-card"></div>
+    </div>
+
+    <div class="diag-lab-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <h3 style="margin:0;font-family:var(--serif);font-size:1.35rem;color:var(--navy)">
+            Laboratorio: Lee un diagrama eléctrico completo
+          </h3>
+          <p style="margin:2px 0 0;font-size:.86rem;color:var(--ink-2)">
+            Acciona el interruptor S1, invierte el diodo protector D1 o toca cualquier componente del plano.
+          </p>
+        </div>
+        <div class="pill-row">
+          <button type="button" class="seg-btn is-active" id="diag-lab-sw">Interruptor S1: CERRADO</button>
+          <button type="button" class="seg-btn is-active" id="diag-lab-d">Diodo D1: DIRECTO</button>
+        </div>
+      </div>
+
+      <div class="svg-stage">
+        <svg viewBox="0 0 680 235" aria-label="Diagrama esquemático interactivo completo">
+          <!-- Lazo de circuito -->
+          <rect x="88" y="42" width="504" height="145" rx="12" fill="none" stroke="#475569" stroke-width="5"/>
+          <rect id="diag-lab-flow" class="electron-flow" x="88" y="42" width="504" height="145" rx="12" fill="none" stroke="#38bdf8" stroke-width="3"/>
+
+          <!-- Fuente 5V -->
+          <g class="diag-clickable" data-lab-part="fuente" transform="translate(56, 82)">
+            <rect x="0" y="0" width="64" height="68" rx="8" fill="#141c33" stroke="#ff7a1a" stroke-width="2"/>
+            <line x1="16" y1="24" x2="48" y2="24" stroke="#ef4444" stroke-width="4"/>
+            <line x1="22" y1="36" x2="42" y2="36" stroke="#cbd5e1" stroke-width="3.5"/>
+            <text x="32" y="57" text-anchor="middle" fill="#fff" font-family="monospace" font-size="11" font-weight="bold">5 V DC</text>
+          </g>
+
+          <!-- Interruptor S1 -->
+          <g class="diag-clickable" data-lab-part="s1" transform="translate(178, 18)">
+            <rect x="0" y="6" width="88" height="38" rx="6" fill="#141c33"/>
+            <circle cx="16" cy="24" r="5" fill="#ff7a1a"/>
+            <circle cx="72" cy="24" r="5" fill="#ff7a1a"/>
+            <line id="diag-lab-blade" x1="16" y1="24" x2="72" y2="24" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <text x="44" y="56" text-anchor="middle" fill="#ffb066" font-family="monospace" font-size="11" font-weight="bold">S1</text>
+          </g>
+
+          <!-- Resistencia R1 -->
+          <g class="diag-clickable" data-lab-part="r1" transform="translate(332, 16)">
+            <rect x="0" y="8" width="106" height="36" rx="6" fill="#141c33"/>
+            <path d="M4 26 L18 26 L25 14 L35 38 L45 14 L55 38 L65 14 L75 38 L83 26 L102 26" fill="none" stroke="#dec8a0" stroke-width="3.5"/>
+            <text x="53" y="58" text-anchor="middle" fill="#cbd5e1" font-family="monospace" font-size="11" font-weight="bold">R1 · 220 Ω</text>
+          </g>
+
+          <!-- Diodo D1 -->
+          <g class="diag-clickable" data-lab-part="d1" transform="translate(556, 82)">
+            <rect x="-12" y="-4" width="88" height="72" rx="8" fill="#141c33"/>
+            <g id="diag-lab-diode-gfx"></g>
+            <text x="32" y="60" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="11" font-weight="bold">D1 (1N4007)</text>
+          </g>
+
+          <!-- LED1 en rama inferior -->
+          <g class="diag-clickable" data-lab-part="led1" transform="translate(320, 160)">
+            <rect x="0" y="0" width="90" height="54" rx="8" fill="#141c33"/>
+            <circle id="diag-lab-led-glow" cx="45" cy="27" r="24" fill="#ef4444" opacity="0.45"/>
+            <polygon points="24,14 24,40 50,27" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>
+            <line x1="52" y1="14" x2="52" y2="40" stroke="#fff" stroke-width="3.5"/>
+            <text x="45" y="62" text-anchor="middle" fill="#fca5a5" font-family="monospace" font-size="11" font-weight="bold">LED1</text>
+          </g>
+
+          <!-- Símbolo GND -->
+          <g class="diag-clickable" data-lab-part="gnd" transform="translate(174, 187)">
+            <line x1="20" y1="0" x2="20" y2="16" stroke="#94a3b8" stroke-width="3"/>
+            <line x1="6" y1="16" x2="34" y2="16" stroke="#fff" stroke-width="3"/>
+            <line x1="11" y1="22" x2="29" y2="22" stroke="#fff" stroke-width="3"/>
+            <line x1="16" y1="28" x2="24" y2="28" stroke="#fff" stroke-width="3"/>
+            <text x="46" y="23" fill="#94a3b8" font-family="monospace" font-size="11">GND (0 V)</text>
+          </g>
+        </svg>
+      </div>
+
+      <div id="diag-lab-banner" class="status-banner is-ok">${labFocusText}</div>
+    </div>
+  `;
+
+  const renderSym = () => {
+    const def = SYMBOLS.find((s) => s.id === activeId) ?? SYMBOLS[0];
+    const tCard = document.getElementById('diag-theory-card')!;
+    const aCard = document.getElementById('diag-anim-card')!;
+    tCard.innerHTML = `
+      <h3>${def.title}</h3>
+      <div class="svg-stage is-light">${def.theorySvg}</div>
+      <div class="diag-meta-box">
+        <div><strong>Terminales:</strong> ${def.pins}</div>
+        <div><strong>Cómo funciona:</strong> ${def.theory}</div>
+      </div>
+      <div class="rule-card is-good" style="margin-top:auto">
+        <strong>En el taller con Arduino</strong>
+        ${def.arduinoTip}
+      </div>
+    `;
+
+    const anim = def.renderAnim(altMode, potPct);
+    aCard.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3>Comportamiento animado</h3>
+        ${
+          def.id === 'pot'
+            ? `<span style="font-family:var(--mono);font-size:.78rem;color:var(--accent-ink);font-weight:700">${potPct}%</span>`
+            : `<button type="button" class="seg-btn is-active" id="diag-anim-action">${def.actionLabel}</button>`
+        }
+      </div>
+      ${
+        def.id === 'pot'
+          ? `<div class="ctrl-group"><input id="diag-pot-slider" type="range" min="0" max="100" value="${potPct}" /></div>`
+          : ''
+      }
+      <div class="svg-stage">${anim.svg}</div>
+      <div class="status-banner is-ok">${anim.status}</div>
+    `;
+
+    document.getElementById('diag-anim-action')?.addEventListener('click', () => {
+      altMode = !altMode;
+      renderSym();
+    });
+    document.getElementById('diag-pot-slider')?.addEventListener('input', (e) => {
+      potPct = Number((e.target as HTMLInputElement).value);
+      renderSym();
+    });
+  };
+
+  const renderLab = () => {
+    const flow = document.getElementById('diag-lab-flow') as HTMLElement;
+    const blade = document.getElementById('diag-lab-blade')!;
+    const diodeGfx = document.getElementById('diag-lab-diode-gfx')!;
+    const ledGlow = document.getElementById('diag-lab-led-glow')!;
+    const banner = document.getElementById('diag-lab-banner')!;
+
+    const conducting = labSwitchClosed && labDiodeForward;
+    blade.setAttribute('y2', labSwitchClosed ? '24' : '8');
+    diodeGfx.innerHTML = labDiodeForward
+      ? `<polygon points="16,12 48,12 32,40" fill="#22c55e"/><line x1="16" y1="42" x2="48" y2="42" stroke="#fff" stroke-width="4"/>`
+      : `<line x1="16" y1="12" x2="48" y2="12" stroke="#ef4444" stroke-width="4"/><polygon points="16,42 48,42 32,14" fill="#64748b"/>`;
+
+    flow.classList.toggle('is-stopped', !conducting);
+    flow.style.setProperty('--flow-speed', '0.85s');
+    ledGlow.setAttribute('opacity', conducting ? '0.68' : '0');
+
+    const swBtn = document.getElementById('diag-lab-sw')!;
+    const dBtn = document.getElementById('diag-lab-d')!;
+    swBtn.textContent = `Interruptor S1: ${labSwitchClosed ? 'CERRADO' : 'ABIERTO'}`;
+    swBtn.classList.toggle('is-active', labSwitchClosed);
+    dBtn.textContent = `Diodo D1: ${labDiodeForward ? 'DIRECTO' : 'INVERTIDO'}`;
+    dBtn.classList.toggle('is-active', labDiodeForward);
+
+    if (!labSwitchClosed) {
+      banner.className = 'status-banner is-warn';
+      banner.textContent = `Circuito abierto en S1 → 0 mA. Cierra el interruptor para completar la malla.`;
+    } else if (!labDiodeForward) {
+      banner.className = 'status-banner is-bad';
+      banner.textContent = `El diodo D1 está en polarización inversa → bloquea la corriente y LED1 no enciende.`;
+    } else {
+      banner.className = 'status-banner is-ok';
+      banner.textContent = `¡Circuito activo (~10 mA)! ${labFocusText}`;
+    }
+  };
+
+  root.querySelectorAll<HTMLButtonElement>('[data-diag-sym]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('[data-diag-sym]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      activeId = btn.dataset.diagSym as SymId;
+      altMode = false;
+      renderSym();
+    });
+  });
+
+  document.getElementById('diag-lab-sw')?.addEventListener('click', () => {
+    labSwitchClosed = !labSwitchClosed;
+    renderLab();
+  });
+  document.getElementById('diag-lab-d')?.addEventListener('click', () => {
+    labDiodeForward = !labDiodeForward;
+    renderLab();
+  });
+
+  const PART_TIPS: Record<string, string> = {
+    fuente: 'Fuente DC 5 V: suministra la presión eléctrica entre el terminal positivo y GND.',
+    s1: 'Interruptor S1: permite abrir o cerrar manualmente el lazo de corriente.',
+    r1: 'Resistencia R1 (220 Ω): limita los miliamperios para proteger tanto a D1 como a LED1.',
+    d1: 'Diodo D1: asegura que la corriente solo viaje en sentido horario (protección contra inversión de pila).',
+    led1: 'LED1: convierte parte de la energía en luz roja cuando recibe corriente directa segura.',
+    gnd: 'GND (0 V): cierra el circuito devolviendo los electrones hacia la fuente.',
+  };
+  root.querySelectorAll<SVGElement>('[data-lab-part]').forEach((el) => {
+    el.addEventListener('click', () => {
+      labFocusText = PART_TIPS[el.dataset.labPart ?? ''] ?? labFocusText;
+      renderLab();
+    });
+  });
+
+  renderSym();
+  renderLab();
+}
+
+/* =========================================================================
+ * MÓDULO 4: Circuitos en Serie vs. Paralelo interactivos
  * ========================================================================= */
 function mountModSerieParalelo(): void {
   const root = document.getElementById('root-mod-serie-paralelo')!;
@@ -1651,9 +2628,28 @@ while (digitalRead(2) == LOW) {
 
 mountModElectricidad();
 mountModOhm();
+mountModDiagramas();
 mountModSerieParalelo();
 mountModProtoboard();
 mountModPinouts();
 mountModPullUp();
 mountModPwm();
 mountModCodigo();
+
+const clasesMobBtn = document.getElementById('clases-mob-toggle') as HTMLButtonElement | null;
+const clasesMobDrawer = document.getElementById('clases-mob-drawer') as HTMLElement | null;
+if (clasesMobBtn && clasesMobDrawer) {
+  const closeDrawer = () => {
+    clasesMobDrawer.hidden = true;
+    clasesMobBtn.setAttribute('aria-expanded', 'false');
+  };
+  clasesMobBtn.addEventListener('click', () => {
+    const open = clasesMobDrawer.hidden;
+    clasesMobDrawer.hidden = !open;
+    clasesMobBtn.setAttribute('aria-expanded', String(open));
+  });
+  clasesMobDrawer.querySelectorAll('a').forEach((a) => a.addEventListener('click', closeDrawer));
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !clasesMobDrawer.hidden) closeDrawer();
+  });
+}

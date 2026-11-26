@@ -36,10 +36,11 @@
         <nav class="main-nav" aria-label="Módulos de clase">
           <a href="#mod-electricidad">Electricidad</a>
           <a href="#mod-ohm">Ley de Ohm</a>
+          <a href="#mod-diagramas">Diagramas</a>
           <a href="#mod-serie-paralelo">Serie / Paralelo</a>
           <a href="#mod-protoboard">Protoboard</a>
           <a href="#mod-pinouts">Pinouts</a>
-          <a href="#mod-pullup">Pull-Up / Down</a>
+          <a href="#mod-pullup">Pull-Up</a>
           <a href="#mod-pwm">PWM</a>
           <a href="#mod-codigo">Programación</a>
         </nav>
@@ -48,8 +49,29 @@
           <a class="btn-back-sim" href="./index.html#mesa-trabajo">
             ← Ir al Simulador 3D
           </a>
+          <button
+            type="button"
+            class="mobile-nav-toggle"
+            id="clases-mob-toggle"
+            aria-expanded="false"
+            aria-controls="clases-mob-drawer"
+            aria-label="Abrir menú de módulos"
+          >
+            ☰
+          </button>
         </div>
       </div>
+      <nav class="mobile-nav-drawer" id="clases-mob-drawer" aria-label="Módulos móvil" hidden>
+        <a href="#mod-electricidad">1. Electricidad y Potencia</a>
+        <a href="#mod-ohm">2. Ley de Ohm + LED</a>
+        <a href="#mod-diagramas">3. Diagramas Eléctricos</a>
+        <a href="#mod-serie-paralelo">4. Serie vs. Paralelo</a>
+        <a href="#mod-protoboard">5. Protoboard + Cables</a>
+        <a href="#mod-pinouts">6. Pinouts Reales</a>
+        <a href="#mod-pullup">7. Pull-Up / Pull-Down</a>
+        <a href="#mod-pwm">8. Señal PWM vs. Voltaje</a>
+        <a href="#mod-codigo">9. Arduino C++ Completo</a>
+      </nav>
     </header>
 
     <main class="clases-main">
@@ -59,51 +81,64 @@
           <span class="section-num">ÁREA PREMILITAR · TECNOLOGÍA GEOGO</span>
           <h1>Domina la electrónica antes de cablear</h1>
           <p class="clases-lead">
-            Ocho laboratorios visuales e interactivos con simulaciones en vivo. Mueve cada control,
-            prueba conexiones reales y entiende por qué funciona cada componente de tu Arduino.
+            Nueve laboratorios visuales e interactivos con simulaciones animadas en vivo. Mueve cada control,
+            prueba qué pasa si sobrecargas un LED o una resistencia y lee diagramas eléctricos reales.
           </p>
           <div class="clases-pill-nav">
-            <a href="#mod-electricidad">1. Electricidad</a>
+            <a href="#mod-electricidad">1. Electricidad y Potencia</a>
             <a href="#mod-ohm">2. Ley de Ohm + LED</a>
-            <a href="#mod-serie-paralelo">3. Serie vs. Paralelo</a>
-            <a href="#mod-protoboard">4. Protoboard + Cables</a>
-            <a href="#mod-pinouts">5. Pinouts Reales</a>
-            <a href="#mod-pullup">6. Pull-Up / Pull-Down</a>
-            <a href="#mod-pwm">7. Señal PWM vs. Voltaje</a>
-            <a href="#mod-codigo">8. Arduino C++ Completo</a>
+            <a href="#mod-diagramas">3. Diagramas Eléctricos</a>
+            <a href="#mod-serie-paralelo">4. Serie vs. Paralelo</a>
+            <a href="#mod-protoboard">5. Protoboard + Cables</a>
+            <a href="#mod-pinouts">6. Pinouts Reales</a>
+            <a href="#mod-pullup">7. Pull-Up / Pull-Down</a>
+            <a href="#mod-pwm">8. Señal PWM vs. Voltaje</a>
+            <a href="#mod-codigo">9. Arduino C++ Completo</a>
           </div>
         </div>
       </section>
 
-      <!-- MÓDULO 1: ELECTRICIDAD -->
+      <!-- MÓDULO 1: ELECTRICIDAD + ANALOGÍA DEL AGUA + POTENCIA -->
       <section class="class-module" id="mod-electricidad">
         <div class="clases-container">
           <div class="mod-head">
             <span class="section-num">MÓDULO 01</span>
-            <h2>Voltaje, Corriente y Resistencia en acción</h2>
-            <p>Observa cómo la presión eléctrica (Voltios) empuja los electrones y la resistencia frena el paso.</p>
+            <h2>Voltaje, Corriente, Resistencia y Potencia</h2>
+            <p>Aprende cada concepto con la analogía del agua y comprueba en vivo cuándo se quema el LED por corriente (mA) o la resistencia por exceso de potencia (Watts).</p>
           </div>
           <div id="root-mod-electricidad"></div>
         </div>
       </section>
 
-      <!-- MÓDULO 2: LEY DE OHM + LED QUE SE QUEMA -->
+      <!-- MÓDULO 2: LEY DE OHM + LED Y RESISTENCIA QUE SE QUEMAN -->
       <section class="class-module is-alt" id="mod-ohm">
         <div class="clases-container">
           <div class="mod-head">
             <span class="section-num">MÓDULO 02</span>
-            <h2>Ley de Ohm y Protección de LEDs</h2>
-            <p>Explora las ecuaciones reales y comprueba qué pasa cuando superas los 30 mA en un LED sin resistencia adecuada.</p>
+            <h2>Ley de Ohm, Potencia y Protección de Componentes</h2>
+            <p>Explora las ecuaciones de Ley de Ohm y Potencia (P = V · I = I² · R), elige resistencias de 1/8 W a 1 W y observa sobrecargas reales.</p>
           </div>
           <div id="root-mod-ohm"></div>
         </div>
       </section>
 
-      <!-- MÓDULO 3: SERIE VS PARALELO -->
-      <section class="class-module" id="mod-serie-paralelo">
+      <!-- MÓDULO 3: DIAGRAMAS ELÉCTRICOS Y SIMBOLOGÍA -->
+      <section class="class-module" id="mod-diagramas">
         <div class="clases-container">
           <div class="mod-head">
             <span class="section-num">MÓDULO 03</span>
+            <h2>Diagramas Eléctricos y Simbología Electrónica</h2>
+            <p>Conoce cómo se dibujan fuentes, resistencias, diodos, LEDs, interruptores, capacitores y transistores, e interactúa con cada símbolo animado.</p>
+          </div>
+          <div id="root-mod-diagramas"></div>
+        </div>
+      </section>
+
+      <!-- MÓDULO 4: SERIE VS PARALELO -->
+      <section class="class-module is-alt" id="mod-serie-paralelo">
+        <div class="clases-container">
+          <div class="mod-head">
+            <span class="section-num">MÓDULO 04</span>
             <h2>Circuitos en Serie vs. Paralelo</h2>
             <p>Desconecta el LED 1 en ambos esquemas y compara en vivo qué ocurre con la corriente y la resistencia equivalente.</p>
           </div>
@@ -111,11 +146,11 @@
         </div>
       </section>
 
-      <!-- MÓDULO 4: PROTOBOARD COMPLETA + CONEXIÓN DE CABLES -->
-      <section class="class-module is-alt" id="mod-protoboard">
+      <!-- MÓDULO 5: PROTOBOARD COMPLETA + CONEXIÓN DE CABLES -->
+      <section class="class-module" id="mod-protoboard">
         <div class="clases-container">
           <div class="mod-head">
-            <span class="section-num">MÓDULO 04</span>
+            <span class="section-num">MÓDULO 05</span>
             <h2>Protoboard: Rayos X y Simulador de Conexiones</h2>
             <p>Pasa el cursor para revelar las pistas internas o haz clic entre dos puntos para cablear y ver cómo se comparte la señal o energía.</p>
           </div>
@@ -123,11 +158,11 @@
         </div>
       </section>
 
-      <!-- MÓDULO 5: PINOUT REAL INTERACTIVO -->
-      <section class="class-module" id="mod-pinouts">
+      <!-- MÓDULO 6: PINOUT REAL INTERACTIVO -->
+      <section class="class-module is-alt" id="mod-pinouts">
         <div class="clases-container">
           <div class="mod-head">
-            <span class="section-num">MÓDULO 05</span>
+            <span class="section-num">MÓDULO 06</span>
             <h2>Pinout Real de Arduino Uno R3 y ESP32 DevKit V1</h2>
             <p>Filtra por tipo de pin y toca cualquier terminal sobre la forma real de la placa para conocer su función exacta.</p>
           </div>
@@ -135,11 +170,11 @@
         </div>
       </section>
 
-      <!-- MÓDULO 6: RESISTENCIAS PULL-UP Y PULL-DOWN -->
-      <section class="class-module is-alt" id="mod-pullup">
+      <!-- MÓDULO 7: RESISTENCIAS PULL-UP Y PULL-DOWN -->
+      <section class="class-module" id="mod-pullup">
         <div class="clases-container">
           <div class="mod-head">
-            <span class="section-num">MÓDULO 06</span>
+            <span class="section-num">MÓDULO 07</span>
             <h2>Resistencias Pull-Up, Pull-Down y Pin Flotante</h2>
             <p>Compara en el osciloscopio en vivo qué ocurre si dejas un pin digital al aire frente a usar una resistencia de 10 kΩ o INPUT_PULLUP.</p>
           </div>
@@ -147,11 +182,11 @@
         </div>
       </section>
 
-      <!-- MÓDULO 7: SEÑAL PWM VS BAJAR VOLTAJE + DIAGRAMAS BASE -->
-      <section class="class-module" id="mod-pwm">
+      <!-- MÓDULO 8: SEÑAL PWM VS BAJAR VOLTAJE -->
+      <section class="class-module is-alt" id="mod-pwm">
         <div class="clases-container">
           <div class="mod-head">
-            <span class="section-num">MÓDULO 07</span>
+            <span class="section-num">MÓDULO 08</span>
             <h2>Señal PWM: ¿Por qué conmutar y no bajar el voltaje?</h2>
             <p>Observa los pulsos en cámara lenta, su voltaje promedio y la diferencia térmica frente a usar resistencias para reducir voltaje.</p>
           </div>
@@ -159,11 +194,11 @@
         </div>
       </section>
 
-      <!-- MÓDULO 8: CÓMO PIENSA ARDUINO + FUNDAMENTOS C++ -->
-      <section class="class-module is-alt" id="mod-codigo">
+      <!-- MÓDULO 9: CÓMO PIENSA ARDUINO + FUNDAMENTOS C++ -->
+      <section class="class-module" id="mod-codigo">
         <div class="clases-container">
           <div class="mod-head">
-            <span class="section-num">MÓDULO 08</span>
+            <span class="section-num">MÓDULO 09</span>
             <h2>Cómo piensa Arduino y Fundamentos de Programación</h2>
             <p>Entiende el ciclo setup()/loop() y domina librerías, variables, constantes, funciones, condicionales y bucles.</p>
           </div>

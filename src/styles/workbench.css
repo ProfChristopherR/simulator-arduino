@@ -4,6 +4,7 @@
 }
 
 .workbench-shell {
+  position: relative;
   max-width: 1480px;
   margin: 0 auto;
   background: var(--paper-hi);
@@ -13,6 +14,56 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Aviso obligatorio de orientación horizontal en celulares */
+.wb-rotate-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(28, 43, 90, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--paper);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 24px;
+  gap: 14px;
+}
+
+.wb-rotate-overlay h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+.wb-rotate-overlay p {
+  margin: 0;
+  font-size: 0.92rem;
+  max-width: 34ch;
+  color: rgba(247, 242, 234, 0.9);
+  line-height: 1.45;
+}
+
+.wb-rotate-note {
+  font-size: 0.78rem;
+  color: #ffb066;
+  max-width: 34ch;
+}
+
+.wb-phone-rotator {
+  transform-origin: 60px 60px;
+  animation: phoneRotateTilt 2.4s ease-in-out infinite;
+}
+
+@keyframes phoneRotateTilt {
+  0%, 15% { transform: rotate(0deg); }
+  55%, 80% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
 }
 
 .workbench-shell.is-fullscreen,
@@ -194,6 +245,7 @@
 
 .wb-palette {
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -647,11 +699,17 @@
   border-radius: var(--radius-md);
   padding: 7px 12px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
   font-size: 0.76rem;
   color: var(--ink-2);
+}
+
+.wb-hud-bottom > span {
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
 .wb-controls-legend {
@@ -681,8 +739,10 @@
 
 .wb-bench-quick {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 5px;
   flex-shrink: 0;
+  max-width: 100%;
 }
 
 /* ViewCube CAD estilo Fusion 360 en esquina inferior izquierda */
@@ -1364,11 +1424,46 @@
 
 @media (max-width: 1180px) {
   .wb-body {
-    grid-template-columns: 220px 1fr 330px;
+    grid-template-columns: 215px 1fr 300px;
+  }
+
+  .wb-hint-chip {
+    display: none;
+  }
+
+  .wb-palette {
+    padding: 8px;
+  }
+
+  .palette-btn {
+    grid-template-columns: 34px 1fr;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .palette-thumb {
+    width: 34px;
+    height: 28px;
+  }
+
+  .palette-btn-head {
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  .wb-viewcube-host {
+    top: 56px;
+    bottom: auto;
+    left: 12px;
+  }
+
+  .wb-mini-btn {
+    font-size: 0.7rem;
+    padding: 3px 7px;
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 960px) and (min-width: 768px) {
   .wb-body {
     grid-template-columns: 1fr;
     height: auto;
@@ -1377,21 +1472,148 @@
   .wb-sidebar {
     border-right: none;
     border-bottom: 1px solid var(--border);
-    max-height: 220px;
+    max-height: 210px;
   }
 
   .wb-stage {
-    min-height: 440px;
+    min-height: 460px;
   }
 
   .wb-tryit-card {
-    width: 210px;
-    bottom: 66px;
+    width: 220px;
+    bottom: 92px;
   }
 
   .wb-inspector {
     border-left: none;
     border-top: 1px solid var(--border);
     min-height: 360px;
+  }
+}
+
+/* Celular en vertical: exige girar a horizontal para usar el simulador */
+@media (max-width: 767px) and (orientation: portrait) {
+  .workbench-shell {
+    min-height: 460px;
+    max-height: 520px;
+    overflow: hidden;
+  }
+
+  .workbench-shell .wb-rotate-overlay {
+    display: flex;
+  }
+}
+
+/* Celular / pantalla baja en horizontal: optimizado lado a lado */
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 960px) {
+  .wb-topbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .wb-topbar-actions {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  .wb-btn span:not(.icon-slot) {
+    font-size: 0.72rem;
+  }
+
+  .wb-body {
+    grid-template-columns: 175px 1fr 240px;
+    height: calc(100vh - 96px);
+    min-height: 0;
+  }
+
+  .wb-hint-chip {
+    display: none;
+  }
+
+  .wb-palette {
+    padding: 6px;
+  }
+
+  .palette-btn {
+    grid-template-columns: 30px 1fr;
+    padding: 5px;
+    gap: 5px;
+  }
+
+  .palette-thumb {
+    width: 30px;
+    height: 24px;
+  }
+
+  .palette-btn-head {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .wb-stage {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .wb-canvas-host {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .wb-hud-top {
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .wb-status-pill {
+    font-size: 0.64rem;
+    padding: 3px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .wb-wire-palette {
+    padding: 3px 6px;
+    flex-shrink: 0;
+  }
+
+  .wb-viewcube-host {
+    top: 44px;
+    bottom: auto;
+    left: 6px;
+  }
+
+  .vc-wrap {
+    width: 66px;
+    height: 66px;
+  }
+
+  .wb-hud-bottom-wrap {
+    bottom: 6px;
+    left: 6px;
+    right: 6px;
+  }
+
+  .wb-hud-bottom {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    gap: 4px 8px;
+  }
+
+  .wb-controls-legend {
+    display: none;
+  }
+
+  .wb-tryit-card {
+    width: 190px;
+    bottom: 64px;
+    max-height: 155px;
   }
 }

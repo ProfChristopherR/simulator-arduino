@@ -171,8 +171,30 @@ function formatOhmsRich(ohms: number): string {
   return formatOhms(ohms);
 }
 
+type CalcScale = 'compact' | 'normal' | 'large';
+const RC_SCALE_KEY = 'geogo_rc_scale';
+
+function loadCalcScale(): CalcScale {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const v = localStorage.getItem(RC_SCALE_KEY);
+      if (v === 'compact' || v === 'normal' || v === 'large') return v;
+    }
+  } catch {}
+  return 'normal';
+}
+
+function saveCalcScale(scale: CalcScale): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(RC_SCALE_KEY, scale);
+    }
+  } catch {}
+}
+
 export function mountResistorCalculator(root: HTMLElement): void {
   let mode: 4 | 5 = 4;
+  let scale: CalcScale = loadCalcScale();
   let d1 = 2;
   let d2 = 2;
   let d3 = 0;
@@ -186,78 +208,83 @@ export function mountResistorCalculator(root: HTMLElement): void {
   const multColors = COLOR_TABLE.filter((c) => c.multiplier !== null);
   const tolColors = COLOR_TABLE.filter((c) => c.tolerancePct !== null);
 
+  root.classList.remove('is-scale-compact', 'is-scale-normal', 'is-scale-large');
+  root.classList.add(`is-scale-${scale}`);
+
   root.innerHTML = `
     <div class="res-calc-head">
-      <div class="section-intro-head">
-        <span class="section-num">HERRAMIENTA INTERACTIVA · IEC 60062</span>
-        <h2>Calculadora Bidireccional de Resistencias</h2>
-        <p>
-          Elige los colores de las bandas para descubrir los ohmios, o escribe un valor en Ω / kΩ / MΩ
-          para ver qué bandas de color debes buscar en tu kit físico.
-        </p>
+      <div>
+        <h2>Calculadora de resistencias</h2>
+        <p class="res-calc-head-sub">Elige los colores para obtener ohmios o escribe un valor en Ω / kΩ / MΩ para ver sus bandas.</p>
       </div>
-      <div class="res-mode-switch" role="group" aria-label="Número de bandas">
-        <button type="button" class="seg-btn is-active" data-rc-mode="4">4 Bandas (Común 5%)</button>
-        <button type="button" class="seg-btn" data-rc-mode="5">5 Bandas (Precisión 1%)</button>
+      <div class="res-head-controls">
+        <div class="res-mode-switch" role="group" aria-label="Número de bandas">
+          <button type="button" class="seg-btn is-active" data-rc-mode="4">4 Bandas (5%)</button>
+          <button type="button" class="seg-btn" data-rc-mode="5">5 Bandas (1%)</button>
+        </div>
+        <div class="res-mode-switch" role="group" aria-label="Tamaño de vista">
+          <button type="button" class="seg-btn ${scale === 'compact' ? 'is-active' : ''}" data-rc-scale="compact" title="Vista compacta">Compacto</button>
+          <button type="button" class="seg-btn ${scale === 'normal' ? 'is-active' : ''}" data-rc-scale="normal" title="Ajustado a pantalla">Normal</button>
+          <button type="button" class="seg-btn ${scale === 'large' ? 'is-active' : ''}" data-rc-scale="large" title="Vista ampliada">Amplio</button>
+        </div>
       </div>
     </div>
 
     <div class="res-calc-card">
-      <div class="res-preview-stage">
-        <svg viewBox="0 0 640 160" class="res-svg-big" aria-label="Vista previa de resistencia con código de colores">
-          <defs>
-            <linearGradient id="rc-body-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#f2e4c9" />
-              <stop offset="35%" stop-color="#e2cca5" />
-              <stop offset="100%" stop-color="#c3a776" />
-            </linearGradient>
-            <linearGradient id="rc-blue-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#60a5fa" />
-              <stop offset="40%" stop-color="#3b82f6" />
-              <stop offset="100%" stop-color="#1d4ed8" />
-            </linearGradient>
-          </defs>
-          <!-- Alambres terminales -->
-          <line x1="20" y1="80" x2="620" y2="80" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" />
-          <line x1="20" y1="77" x2="620" y2="77" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round" />
-          <!-- Cuerpo cerámico -->
-          <path id="rc-body-shape" d="M 145 40 Q 175 34 210 44 L 430 44 Q 465 34 495 40 Q 515 50 515 80 Q 515 110 495 120 Q 465 126 430 116 L 210 116 Q 175 126 145 120 Q 125 110 125 80 Q 125 50 145 40 Z"
-            fill="url(#rc-body-grad)" stroke="#8b7048" stroke-width="2" />
-          <!-- Bandas dinámicas -->
-          <rect id="rc-band-1" x="182" y="39" width="22" height="82" rx="3" fill="#dc2626" />
-          <rect id="rc-band-2" x="234" y="44" width="22" height="72" rx="3" fill="#dc2626" />
-          <rect id="rc-band-3" x="286" y="44" width="22" height="72" rx="3" fill="#1c1917" opacity="0" />
-          <rect id="rc-band-m" x="338" y="44" width="22" height="72" rx="3" fill="#7c4318" />
-          <rect id="rc-band-t" x="446" y="39" width="22" height="82" rx="3" fill="#d4a007" />
-        </svg>
+      <div class="res-top-grid">
+        <div class="res-preview-stage">
+          <svg viewBox="0 0 640 150" class="res-svg-big" aria-label="Vista previa de resistencia con código de colores">
+            <defs>
+              <linearGradient id="rc-body-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f2e4c9" />
+                <stop offset="35%" stop-color="#e2cca5" />
+                <stop offset="100%" stop-color="#c3a776" />
+              </linearGradient>
+              <linearGradient id="rc-blue-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#60a5fa" />
+                <stop offset="40%" stop-color="#3b82f6" />
+                <stop offset="100%" stop-color="#1d4ed8" />
+              </linearGradient>
+            </defs>
+            <line x1="20" y1="75" x2="620" y2="75" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" />
+            <line x1="20" y1="72" x2="620" y2="72" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round" />
+            <path id="rc-body-shape" d="M 145 35 Q 175 29 210 39 L 430 39 Q 465 29 495 35 Q 515 45 515 75 Q 515 105 495 115 Q 465 121 430 111 L 210 111 Q 175 121 145 115 Q 125 105 125 75 Q 125 45 145 35 Z"
+              fill="url(#rc-body-grad)" stroke="#8b7048" stroke-width="2" />
+            <rect id="rc-band-1" x="182" y="34" width="22" height="82" rx="3" fill="#dc2626" />
+            <rect id="rc-band-2" x="234" y="39" width="22" height="72" rx="3" fill="#dc2626" />
+            <rect id="rc-band-3" x="286" y="39" width="22" height="72" rx="3" fill="#1c1917" opacity="0" />
+            <rect id="rc-band-m" x="338" y="39" width="22" height="72" rx="3" fill="#7c4318" />
+            <rect id="rc-band-t" x="446" y="34" width="22" height="82" rx="3" fill="#d4a007" />
+          </svg>
 
-        <div class="res-readout-box">
-          <span class="res-readout-tag">VALOR NOMINAL</span>
-          <strong class="res-readout-val" id="rc-readout-val">220 Ω ± 5%</strong>
-          <span class="res-readout-range" id="rc-readout-range">Rango real: 209 Ω – 231 Ω</span>
-          <span class="res-readout-note" id="rc-readout-note" hidden></span>
-        </div>
-      </div>
-
-      <!-- Entrada Valor -> Colores -->
-      <div class="res-input-bar">
-        <div class="res-input-group">
-          <label for="rc-val-input">Capacidad / Resistencia deseada</label>
-          <div class="res-input-row">
-            <input id="rc-val-input" type="number" min="0.1" max="999" step="any" value="220" />
-            <select id="rc-unit-select" aria-label="Unidad de resistencia">
-              <option value="1" selected>Ω</option>
-              <option value="1000">kΩ</option>
-              <option value="1000000">MΩ</option>
-            </select>
-            <select id="rc-tol-select" aria-label="Tolerancia">
-              ${tolColors.map((t) => `<option value="${t.key}" ${t.key === 'gold' ? 'selected' : ''}>${t.tolLabel} (${t.name})</option>`).join('')}
-            </select>
+          <div class="res-readout-box">
+            <span class="res-readout-tag">VALOR NOMINAL</span>
+            <strong class="res-readout-val" id="rc-readout-val">220 Ω ± 5%</strong>
+            <span class="res-readout-range" id="rc-readout-range">Rango: 209 Ω – 231 Ω</span>
+            <span class="res-readout-note" id="rc-readout-note" hidden></span>
           </div>
         </div>
-        <div class="res-quick-chips">
-          <span class="rc-chips-lbl">Valores de taller:</span>
-          ${QUICK_E12.map((v) => `<button type="button" class="ci-chip" data-rc-quick="${v}">${formatOhmsRich(v)}</button>`).join('')}
+
+        <!-- Entrada Valor -> Colores -->
+        <div class="res-input-bar">
+          <div class="res-input-group">
+            <label for="rc-val-input">Capacidad deseada</label>
+            <div class="res-input-row">
+              <input id="rc-val-input" type="number" min="0.1" max="999" step="any" value="220" />
+              <select id="rc-unit-select" aria-label="Unidad de resistencia">
+                <option value="1" selected>Ω</option>
+                <option value="1000">kΩ</option>
+                <option value="1000000">MΩ</option>
+              </select>
+              <select id="rc-tol-select" aria-label="Tolerancia">
+                ${tolColors.map((t) => `<option value="${t.key}" ${t.key === 'gold' ? 'selected' : ''}>${t.tolLabel} (${t.name})</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="res-quick-chips">
+            <span class="rc-chips-lbl">Taller:</span>
+            ${QUICK_E12.map((v) => `<button type="button" class="ci-chip" data-rc-quick="${v}">${formatOhmsRich(v)}</button>`).join('')}
+          </div>
         </div>
       </div>
 
@@ -265,9 +292,9 @@ export function mountResistorCalculator(root: HTMLElement): void {
       <div class="res-bands-grid" id="rc-bands-grid"></div>
     </div>
 
-    <!-- Tabla completa de código de colores -->
-    <details class="res-table-details" open>
-      <summary>Tabla completa del código de colores IEC 60062</summary>
+    <!-- Tabla completa de código de colores (cerrada por defecto para encajar en una pantalla) -->
+    <details class="res-table-details">
+      <summary>Ver tabla completa del código de colores IEC 60062</summary>
       <div class="res-table-wrap">
         <table class="res-color-table">
           <thead>
@@ -465,7 +492,20 @@ export function mountResistorCalculator(root: HTMLElement): void {
     if (pushToInput) {
       syncInputFromOhms(res.ohms);
     }
-    root.querySelectorAll<HTMLButtonElement>('[data-rc-quick]').forEach((btn) => {
+    root.querySelectorAll<HTMLButtonElement>('[data-rc-scale]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.rcScale as CalcScale;
+      if (next !== 'compact' && next !== 'normal' && next !== 'large') return;
+      scale = next;
+      saveCalcScale(scale);
+      root.querySelectorAll('[data-rc-scale]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      root.classList.remove('is-scale-compact', 'is-scale-normal', 'is-scale-large');
+      root.classList.add(`is-scale-${scale}`);
+    });
+  });
+
+  root.querySelectorAll<HTMLButtonElement>('[data-rc-quick]').forEach((btn) => {
       btn.classList.toggle('is-active', Math.abs(Number(btn.dataset.rcQuick) - res.ohms) < 0.5);
     });
     renderBandsSelectors();
@@ -510,6 +550,19 @@ export function mountResistorCalculator(root: HTMLElement): void {
     tolKey = tolSel.value;
     approximated = false;
     updateAll(false);
+  });
+
+  root.querySelectorAll<HTMLButtonElement>('[data-rc-scale]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.rcScale as CalcScale;
+      if (next !== 'compact' && next !== 'normal' && next !== 'large') return;
+      scale = next;
+      saveCalcScale(scale);
+      root.querySelectorAll('[data-rc-scale]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      root.classList.remove('is-scale-compact', 'is-scale-normal', 'is-scale-large');
+      root.classList.add(`is-scale-${scale}`);
+    });
   });
 
   root.querySelectorAll<HTMLButtonElement>('[data-rc-quick]').forEach((btn) => {

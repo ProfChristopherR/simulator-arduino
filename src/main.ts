@@ -65,6 +65,24 @@ function bootstrap(): void {
   window.addEventListener('scroll', syncHeaderScroll, { passive: true });
   syncHeaderScroll();
 
+  const mobBtn = document.getElementById('mobile-nav-toggle') as HTMLButtonElement | null;
+  const mobDrawer = document.getElementById('mobile-nav-drawer') as HTMLElement | null;
+  if (mobBtn && mobDrawer) {
+    const closeMob = () => {
+      mobDrawer.hidden = true;
+      mobBtn.setAttribute('aria-expanded', 'false');
+    };
+    mobBtn.addEventListener('click', () => {
+      const opening = mobDrawer.hidden;
+      mobDrawer.hidden = !opening;
+      mobBtn.setAttribute('aria-expanded', String(opening));
+    });
+    mobDrawer.querySelectorAll('a').forEach((a) => a.addEventListener('click', closeMob));
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !mobDrawer.hidden) closeMob();
+    });
+  }
+
   document.getElementById('header-lofi-btn')?.addEventListener('click', () => {
     lofi.toggle();
   });

@@ -1613,6 +1613,22 @@ export class WorkbenchController {
       audio.playSuccess();
     });
 
+    document.getElementById('wb-rotate-fs-btn')?.addEventListener('click', async () => {
+      const shell = document.getElementById('workbench-shell');
+      const note = document.getElementById('wb-rotate-note');
+      try {
+        if (shell && !document.fullscreenElement) {
+          await shell.requestFullscreen();
+        }
+        const ori = screen.orientation as { lock?: (mode: string) => Promise<void> } | undefined;
+        if (ori?.lock) {
+          await ori.lock('landscape');
+        }
+      } catch {
+        if (note) note.hidden = false;
+      }
+    });
+
     document.getElementById('btn-clear-serial')?.addEventListener('click', () => {
       document.getElementById('serial-output')!.textContent = '';
     });
@@ -2055,14 +2071,18 @@ export class WorkbenchController {
       }
     });
 
-    const ro = new ResizeObserver(() => {
+    const syncSize = () => {
       const w = Math.max(1, this.host.clientWidth);
       const h = Math.max(1, this.host.clientHeight);
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h);
-    });
+    };
+    const ro = new ResizeObserver(syncSize);
     ro.observe(this.host);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(syncSize, 160);
+    });
   }
 
   private renderStepsPanel(): void {

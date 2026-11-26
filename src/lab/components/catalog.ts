@@ -513,7 +513,7 @@ export const COMPONENT_CATALOG: ComponentCatalogItem[] = [
     type: 'servo',
     category: 'Actuadores',
     name: 'Micro Servo SG90',
-    shortDesc: 'Actuador de precisión controlado de 0° a 180° mediante <Servo.h>.',
+    shortDesc: 'Actuador de precisión controlado de 0° a 180° mediante la librería Servo.h.',
     voltageBadge: '5V',
     keywords: ['motor', 'brazo', 'angulo', 'sg90'],
     defaultProps: {},
