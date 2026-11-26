@@ -16,7 +16,12 @@ import {
   type TagKind,
 } from './education/pinout-diagrams';
 import { resistorBandsForOhms, formatOhms } from './lab/components/catalog';
-import { mountGravityWaterAnalogy, type GravityWaterAnalogyHandle } from './education/water-analogy';
+import {
+  mountGravityWaterAnalogy,
+  type GravityWaterAnalogyHandle,
+  type WaterFailureMode,
+  type WheelSizeTier,
+} from './education/water-analogy';
 import type { BoardId } from './types';
 
 hydrateIcons(document);
@@ -45,11 +50,59 @@ function mountModElectricidad(): void {
   let volts = 5;
   let ohms = 220;
   let valveClosed = false;
+  let ledTierId: 'led5mm' | 'led1w' | 'led3w' = 'led5mm';
   let ratedW = 0.25;
   let ledState: 'ok' | 'overloading' | 'burned' = 'ok';
   let resState: 'ok' | 'overheating' | 'burned' = 'ok';
   let failTimer: number | null = null;
+  let failPendingKind: 'led' | 'res' | null = null;
   let waterHandle: GravityWaterAnalogyHandle | null = null;
+
+  const LED_TIERS: Array<{
+    id: 'led5mm' | 'led1w' | 'led3w';
+    label: string;
+    vf: number;
+    maxMa: number;
+    warnMa: number;
+    wheelTier: WheelSizeTier;
+    color: string;
+    radius: number;
+    svgLabel: string;
+  }> = [
+    {
+      id: 'led5mm',
+      label: 'LED 5 mm (35 mA)',
+      vf: 2.0,
+      maxMa: 35,
+      warnMa: 25,
+      wheelTier: 'small',
+      color: '#ef4444',
+      radius: 20,
+      svgLabel: 'LED 5mm (2.0 V · máx 35 mA)',
+    },
+    {
+      id: 'led1w',
+      label: 'LED 1 W (350 mA)',
+      vf: 3.0,
+      maxMa: 350,
+      warnMa: 280,
+      wheelTier: 'medium',
+      color: '#f59e0b',
+      radius: 24,
+      svgLabel: 'LED 1W (3.0 V · máx 350 mA)',
+    },
+    {
+      id: 'led3w',
+      label: 'LED COB 3 W (700 mA)',
+      vf: 3.2,
+      maxMa: 700,
+      warnMa: 550,
+      wheelTier: 'large',
+      color: '#38bdf8',
+      radius: 28,
+      svgLabel: 'LED COB 3W (3.2 V · máx 700 mA)',
+    },
+  ];
 
   const WATT_RATINGS: Array<{ w: number; label: string; width: number }> = [
     { w: 0.125, label: '1/8 W', width: 92 },
@@ -149,7 +202,7 @@ function mountModElectricidad(): void {
                 <circle class="led-smoke" cx="40" cy="2" r="10" fill="#64748b" style="animation-delay:0.4s" />
                 <path d="M22 26 L32 34 L26 42 M42 26 L32 34 L38 44" stroke="#f87171" stroke-width="2.5" fill="none" />
               </g>
-              <text x="32" y="76" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">LED (2.0 V)</text>
+              <text id="el-svg-led-lbl" x="32" y="76" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="10.5">LED 5mm (2.0V · 35mA)</text>
             </g>
 
             <text id="el-svg-i" x="270" y="198" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="14" font-weight="bold">
@@ -168,6 +221,12 @@ function mountModElectricidad(): void {
             <div class="ctrl-group">
               <label class="ctrl-label" for="el-r-range"><span>Resistencia (${mVar('R')})</span><span id="el-r-lbl">220 Ω</span></label>
               <input id="el-r-range" type="range" min="22" max="2000" step="10" value="220" />
+            </div>
+            <div class="ctrl-group">
+              <span class="ctrl-label"><span>Tipo de LED / Carga (tamaño de rueda)</span><span id="el-led-lbl">35 mA máx</span></span>
+              <div class="pill-row">
+                ${LED_TIERS.map((lt) => `<button type="button" class="seg-btn ${lt.id === 'led5mm' ? 'is-active' : ''}" data-el-led="${lt.id}">${lt.label}</button>`).join('')}
+              </div>
             </div>
             <div class="ctrl-group">
               <span class="ctrl-label"><span>Potencia nominal de la resistencia</span><span id="el-w-lbl">1/4 W (0.250 W)</span></span>
@@ -208,28 +267,52 @@ function mountModElectricidad(): void {
   `;
 
   const update = (syncWater = true) => {
-    const vLed = 2.0;
+    const activeLed = LED_TIERS.find((x) => x.id === ledTierId) ?? LED_TIERS[0];
+    const vLed = activeLed.vf;
     const vRes = Math.max(0, volts - vLed);
-    const rawAmps = valveClosed ? 0 : vRes / ohms;
+    const anyBurned = ledState === 'burned' || resState === 'burned';
+    const rawAmps = valveClosed || anyBurned ? 0 : vRes / ohms;
     const rawMa = rawAmps * 1000;
-    const rawPr = valveClosed ? 0 : rawAmps * rawAmps * ohms;
-    const rawPt = volts * rawAmps;
+    const rawPr = valveClosed || anyBurned ? 0 : rawAmps * rawAmps * ohms;
 
-    const triggerFail = (kind: 'led' | 'res') => {
-      if (failTimer) clearTimeout(failTimer);
-      failTimer = window.setTimeout(() => {
-        if (kind === 'led') ledState = 'burned';
-        else resState = 'burned';
-        update();
-      }, 650);
-    };
-
-    if (ledState === 'ok' && rawMa > 30) {
-      ledState = 'overloading';
-      triggerFail('led');
-    } else if (resState === 'ok' && rawPr > ratedW) {
-      resState = 'overheating';
-      triggerFail('res');
+    // Falla realista de un solo componente: quien supera antes su límite abre el circuito y protege al otro
+    if (!anyBurned) {
+      const ledRatio = rawMa / activeLed.maxMa;
+      const resRatio = rawPr / ratedW;
+      if (ledRatio > 1 || resRatio > 1) {
+        const nextKind: 'led' | 'res' = resRatio >= ledRatio ? 'res' : 'led';
+        if (nextKind === 'res') {
+          resState = 'overheating';
+          ledState = 'ok';
+        } else {
+          ledState = 'overloading';
+          resState = 'ok';
+        }
+        if (failPendingKind !== nextKind) {
+          if (failTimer) clearTimeout(failTimer);
+          failPendingKind = nextKind;
+          failTimer = window.setTimeout(() => {
+            if (nextKind === 'led') {
+              ledState = 'burned';
+              resState = 'ok'; // Al abrirse el circuito por el LED, la resistencia deja de consumir corriente
+            } else {
+              resState = 'burned';
+              ledState = 'ok'; // Al abrirse la resistencia/llave, el LED de potencia sobrevive intacto
+            }
+            failPendingKind = null;
+            failTimer = null;
+            update();
+          }, 1250);
+        }
+      } else {
+        if (failTimer) {
+          clearTimeout(failTimer);
+          failTimer = null;
+          failPendingKind = null;
+        }
+        ledState = 'ok';
+        resState = 'ok';
+      }
     }
 
     const circuitOpen = valveClosed || ledState === 'burned' || resState === 'burned' || vRes <= 0.05;
@@ -248,9 +331,11 @@ function mountModElectricidad(): void {
     // Etiquetas
     document.getElementById('el-v-lbl')!.textContent = `${volts.toFixed(1)} V`;
     document.getElementById('el-r-lbl')!.textContent = valveClosed ? '∞ Ω (Llave cerrada)' : formatOhms(ohms);
+    document.getElementById('el-led-lbl')!.textContent = `${activeLed.maxMa} mA máx (${activeLed.vf.toFixed(1)} V)`;
     document.getElementById('el-w-lbl')!.textContent = `${wMeta.label} (${ratedW.toFixed(3)} W)`;
     document.getElementById('el-svg-v')!.textContent = `${volts.toFixed(1)} V`;
     document.getElementById('el-svg-r')!.textContent = valveClosed ? '∞ Ω · Abierto' : `${formatOhms(ohms)} · ${wMeta.label}`;
+    document.getElementById('el-svg-led-lbl')!.textContent = activeLed.svgLabel;
     document.getElementById('el-svg-i')!.textContent = circuitOpen && (ledState === 'burned' || resState === 'burned' || valveClosed)
       ? '0.0 mA · CIRCUITO ABIERTO'
       : `I = ${activeMa.toFixed(1)} mA · P(R) = ${activePr.toFixed(3)} W`;
@@ -259,11 +344,17 @@ function mountModElectricidad(): void {
     document.getElementById('el-kpi-pr')!.textContent = `${activePr.toFixed(3)} W`;
     document.getElementById('el-kpi-pt')!.textContent = `${activePt.toFixed(3)} W`;
 
-    const pct = Math.min(200, Math.round((rawPr / ratedW) * 100));
+    const pct = ledState === 'burned'
+      ? 0
+      : resState === 'burned'
+        ? 100
+        : Math.min(200, Math.round((rawPr / ratedW) * 100));
     const fillBar = document.getElementById('el-watt-fill') as HTMLElement;
     fillBar.style.width = `${Math.min(100, pct)}%`;
-    fillBar.style.background = pct > 100 ? '#dc2626' : pct > 70 ? '#f59e0b' : '#16a34a';
-    document.getElementById('el-watt-pct')!.textContent = `${pct}% de ${ratedW.toFixed(3)} W`;
+    fillBar.style.background = resState === 'burned' || pct > 100 ? '#dc2626' : pct > 70 ? '#f59e0b' : '#16a34a';
+    document.getElementById('el-watt-pct')!.textContent = ledState === 'burned'
+      ? `0% (Circuito abierto · 0 mA)`
+      : `${pct}% de ${ratedW.toFixed(3)} W`;
 
     // Fórmulas limpias
     document.getElementById('el-math-live')!.innerHTML = mEq(
@@ -271,8 +362,19 @@ function mountModElectricidad(): void {
         ` &nbsp;|&nbsp; ${mVar('P', 'R')} = ${mVar('I')}<sup>2</sup> · ${mVar('R')} = <span class="math-val">${activePr.toFixed(3)} W</span>`
     );
 
+    const waterFail: WaterFailureMode =
+      resState === 'burned'
+        ? 'valve_burst'
+        : ledState === 'burned'
+          ? 'wheel_broken'
+          : resState === 'overheating'
+            ? 'valve_overload'
+            : ledState === 'overloading'
+              ? 'wheel_overload'
+              : 'ok';
+
     if (syncWater && waterHandle) {
-      waterHandle.syncFromElectric(volts, ohms, valveClosed);
+      waterHandle.syncFromElectric(volts, ohms, valveClosed, activeLed.wheelTier, waterFail);
     }
 
     const elFlow = document.getElementById('el-flow-line') as HTMLElement;
@@ -297,6 +399,8 @@ function mountModElectricidad(): void {
     const replaceBtn = document.getElementById('el-replace-btn') as HTMLButtonElement;
 
     resBody.setAttribute('width', String(wMeta.width));
+    bulbCore.setAttribute('r', String(activeLed.radius));
+    bulbGlow.setAttribute('r', String(activeLed.radius + 18));
 
     if (ledState === 'burned') {
       bulbGlow.setAttribute('opacity', '0');
@@ -310,9 +414,9 @@ function mountModElectricidad(): void {
       ledSparks.setAttribute('opacity', '1');
       ledSmoke.setAttribute('opacity', '0');
     } else {
-      bulbGlow.setAttribute('fill', '#ef4444');
-      bulbGlow.setAttribute('opacity', activeAmps > 0 ? String(Math.min(0.82, 0.16 + activeMa / 28)) : '0');
-      bulbCore.setAttribute('fill', activeAmps > 0 ? '#ef4444' : '#475569');
+      bulbGlow.setAttribute('fill', activeLed.color);
+      bulbGlow.setAttribute('opacity', activeAmps > 0 ? String(Math.min(0.84, 0.18 + (activeMa / activeLed.maxMa) * 0.66)) : '0');
+      bulbCore.setAttribute('fill', activeAmps > 0 ? activeLed.color : '#475569');
       ledSparks.setAttribute('opacity', '0');
       ledSmoke.setAttribute('opacity', '0');
     }
@@ -337,14 +441,14 @@ function mountModElectricidad(): void {
     if (ledState === 'burned' || resState === 'burned') {
       banner.className = 'status-banner is-bad';
       banner.textContent = resState === 'burned'
-        ? `¡RESISTENCIA QUEMADA! Superó su límite de ${wMeta.label} (${rawPr.toFixed(3)} W > ${ratedW.toFixed(3)} W). Sube el wattaje o la resistencia y reemplaza el componente.`
-        : `¡LED QUEMADO por sobrecorriente (${rawMa.toFixed(1)} mA > 30 mA)! Sube la resistencia y pulsa "Reemplazar componentes quemados".`;
+        ? `¡RESISTENCIA QUEMADA (> ${wMeta.label})! En la analogía, la llave reventó fugando agua lateralmente; el circuito se abrió y la rueda (${activeLed.label}) se detuvo intacta.`
+        : `¡LED QUEMADO (${activeLed.label} superado)! La rueda se rompió y abrió el circuito (0.0 mA), así la resistencia dejó de consumir corriente y quedó intacta.`;
       replaceBtn.hidden = false;
     } else if (ledState === 'overloading' || resState === 'overheating') {
       banner.className = 'status-banner is-bad';
       banner.textContent = resState === 'overheating'
-        ? `¡Sobrecalentamiento térmico (${rawPr.toFixed(3)} W > ${wMeta.label})! La resistencia está a punto de quemarse...`
-        : `¡Sobrecorriente extrema en LED (${rawMa.toFixed(1)} mA)! Fundiéndose...`;
+        ? `¡Sobrecalentamiento térmico en R (${rawPr.toFixed(3)} W > ${wMeta.label})! La llave está por reventar...`
+        : `¡Sobrecorriente extrema en ${activeLed.label} (${rawMa.toFixed(1)} mA > ${activeLed.maxMa} mA)! ¡La rueda gira demasiado rápido!`;
       replaceBtn.hidden = true;
     } else if (valveClosed) {
       banner.className = 'status-banner is-warn';
@@ -354,17 +458,17 @@ function mountModElectricidad(): void {
       banner.className = 'status-banner is-warn';
       banner.textContent = volts === 0
         ? 'Sin altura de agua (0.0 m / 0.0 V): estanque vacío, presión y caudal nulos.'
-        : `Voltaje insuficiente (${volts.toFixed(1)} V ≤ 2.0 V) para encender el LED.`;
+        : `Voltaje insuficiente (${volts.toFixed(1)} V ≤ ${vLed.toFixed(1)} V) para encender el ${activeLed.label}.`;
       replaceBtn.hidden = true;
-    } else if (rawMa > 20 || pct > 70) {
+    } else if (rawMa > activeLed.warnMa || pct > 70) {
       banner.className = 'status-banner is-warn';
       banner.textContent = pct > 70
         ? `Advertencia térmica: la resistencia trabaja al ${pct}% de su capacidad (${wMeta.label}).`
-        : `Corriente alta para el LED (${rawMa.toFixed(1)} mA). Recomendado mantener bajo 20 mA.`;
+        : `Corriente cercana al límite de ${activeLed.label} (${rawMa.toFixed(1)} / ${activeLed.maxMa} mA).`;
       replaceBtn.hidden = true;
     } else {
       banner.className = 'status-banner is-ok';
-      banner.textContent = `Funcionamiento óptimo: ${activeMa.toFixed(1)} mA en el LED y ${activePr.toFixed(3)} W en resistencia de ${wMeta.label}.`;
+      banner.textContent = `Funcionamiento óptimo: ${activeMa.toFixed(1)} mA en ${activeLed.label} y ${activePr.toFixed(3)} W en resistencia de ${wMeta.label}.`;
       replaceBtn.hidden = true;
     }
   };
@@ -381,7 +485,7 @@ function mountModElectricidad(): void {
       valveClosed = nextClosed;
       if (vSliderEl) vSliderEl.value = String(volts);
       if (rSliderEl) rSliderEl.value = String(Math.min(2000, Math.max(22, ohms)));
-      update(false);
+      update(true);
     },
   });
 
@@ -394,19 +498,28 @@ function mountModElectricidad(): void {
     valveClosed = false;
     update(true);
   });
+  root.querySelectorAll<HTMLButtonElement>('[data-el-led]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('[data-el-led]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      ledTierId = btn.dataset.elLed as typeof ledTierId;
+      update(true);
+    });
+  });
   root.querySelectorAll<HTMLButtonElement>('[data-el-watt]').forEach((btn) => {
     btn.addEventListener('click', () => {
       root.querySelectorAll('[data-el-watt]').forEach((b) => b.classList.remove('is-active'));
       btn.classList.add('is-active');
       ratedW = Number(btn.dataset.elWatt);
-      update();
+      update(true);
     });
   });
   document.getElementById('el-replace-btn')?.addEventListener('click', () => {
     if (failTimer) clearTimeout(failTimer);
+    failPendingKind = null;
     ledState = 'ok';
     resState = 'ok';
-    update();
+    update(true);
   });
 
   update();

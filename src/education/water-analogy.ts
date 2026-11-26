@@ -1,5 +1,13 @@
 import { formatOhms } from '../lab/components/catalog';
 
+export type WheelSizeTier = 'small' | 'medium' | 'large';
+export type WaterFailureMode =
+  | 'ok'
+  | 'wheel_overload'
+  | 'wheel_broken'
+  | 'valve_overload'
+  | 'valve_burst';
+
 export interface HydraulicState {
   heightMeters: number; // 0..10 m (= V)
   nivelAgua: number; // 0..1
@@ -9,7 +17,7 @@ export interface HydraulicState {
   flowMa: number; // mA (at 2.5 V / 220 Ω = 11.4 mA)
   flowLps: number; // Litros/seg para el diagrama hidráulico
   powerW: number; // Real P = V * I
-  velocityNorm: number; // k * (nivelAgua / ohms), 0..1 visual speed
+  velocityNorm: number; // k * (nivelAgua / ohms), 0..1+ visual speed
   rpm: number; // Giro mecánico de la rueda hidráulica
 }
 
@@ -62,11 +70,11 @@ export function computeHydraulicState(
   const flowMa = flowAmps * 1000;
   const powerW = h * flowAmps;
 
-  // velocidad = k * (nivelAgua / resistencia), normalizada suavemente
-  const k = 32;
-  const velocityNorm = Math.min(1.6, Math.max(0.04, k * (nivelAgua / ohms)));
+  // velocidad = k * (nivelAgua / resistencia), curva expresiva para giro ágil y realista
+  const rawVel = 36 * (nivelAgua / ohms);
+  const velocityNorm = Math.min(2.2, Math.max(0.12, Math.pow(rawVel * 18, 0.56)));
   const flowLps = Number((flowMa * 0.12).toFixed(2));
-  const rpm = Math.round(Math.min(180, nivelAgua * velocityNorm * 145));
+  const rpm = Math.round(Math.min(420, Math.max(12, Math.pow(flowMa * (h / 5), 0.72) * 3.1)));
 
   return {
     heightMeters: h,
@@ -83,14 +91,13 @@ export function computeHydraulicState(
 }
 
 interface DropParticle {
-  // Segmento 0: horizontal antes/en/después válvula, Segmento 1: codo+caída libre
-  phase: 'pipe' | 'fall';
+  phase: 'pipe' | 'fall' | 'leak';
   x: number;
   y: number;
   vx: number;
   vy: number;
   r: number;
-  laneOffset: number; // -1..1 posición vertical normalizada en Tramo 1
+  laneOffset: number;
   hitWheel: boolean;
 }
 
@@ -102,7 +109,13 @@ interface SplashRipple {
 }
 
 export interface GravityWaterAnalogyHandle {
-  syncFromElectric: (volts: number, ohms: number, isClosed: boolean) => void;
+  syncFromElectric: (
+    volts: number,
+    ohms: number,
+    isClosed: boolean,
+    wheelTier?: WheelSizeTier,
+    failureMode?: WaterFailureMode
+  ) => void;
   destroy: () => void;
 }
 
@@ -122,14 +135,14 @@ export function mountGravityWaterAnalogy(
     <div class="water-controls-grid">
       <div class="ctrl-group">
         <label class="ctrl-label" for="wa-height-range">
-          <span>Altura de agua (<span class="math-var">Δh</span>)</span>
+          <span>Altura agua (<span class="math-var">Δh</span>)</span>
           <span id="wa-height-lbl">5.0 m (50%)</span>
         </label>
         <input id="wa-height-range" type="range" min="0" max="10" step="0.5" value="${opts.initialVolts}" />
       </div>
       <div class="ctrl-group">
         <label class="ctrl-label" for="wa-valve-range">
-          <span>Apertura de llave (<span class="math-var">1/R</span>)</span>
+          <span>Apertura llave (<span class="math-var">1/R</span>)</span>
           <span id="wa-valve-lbl">50% abierta</span>
         </label>
         <input id="wa-valve-range" type="range" min="0" max="100" step="1" value="${ohmsToAperturaPct(opts.initialOhms)}" />
@@ -155,7 +168,7 @@ export function mountGravityWaterAnalogy(
           <span class="weq-elec">Corriente (<span class="math-var">I = V/R</span>) = <strong id="weq-i-val">22.7 mA</strong></span>
         </div>
         <div class="water-equiv-row">
-          <span class="weq-hydro">Giro de la rueda (<strong id="weq-rpm-val">70 RPM</strong>)</span>
+          <span class="weq-hydro">Giro de rueda (<strong id="weq-rpm-val">70 RPM</strong>)</span>
           <span class="weq-arrow">↔</span>
           <span class="weq-elec">Potencia (<span class="math-var">P = V·I</span>) = <strong id="weq-p-val">0.114 W</strong></span>
         </div>
@@ -171,13 +184,16 @@ export function mountGravityWaterAnalogy(
   let heightMeters = opts.initialVolts;
   let aperturaPct = ohmsToAperturaPct(opts.initialOhms);
   let overrideOhms: number | undefined = opts.initialOhms;
+  let wheelTier: WheelSizeTier = 'small';
+  let failureMode: WaterFailureMode = 'ok';
   let state = computeHydraulicState(heightMeters, aperturaPct, overrideOhms);
 
   // Estado de animación
   let wheelAngle = 0;
-  let weightLift = 0.12; // 0 (abajo) .. 1 (arriba junto a polea)
-  let lowerFill = 0.24; // Nivel del estanque inferior (0.14 .. 0.72)
+  let weightLift = 0.14;
+  let lowerFill = 0.24;
   let spawnAccum = 0;
+  let leakAccum = 0;
   let simTime = 0;
   const drops: DropParticle[] = [];
   const ripples: SplashRipple[] = [];
@@ -186,30 +202,30 @@ export function mountGravityWaterAnalogy(
   const W = 560;
   const H = 310;
   const TANK_X = 36;
-  const TANK_W = 90;
+  const TANK_W = 88;
   const TANK_TOP = 44;
-  const TANK_BOT = 162; // fondo interno estanque superior
+  const TANK_BOT = 162;
   const PIPE_Y1 = 135;
   const PIPE_Y2 = 161;
   const PIPE_MID_Y = (PIPE_Y1 + PIPE_Y2) / 2; // 148
   const PIPE_H = PIPE_Y2 - PIPE_Y1; // 26
-  const VALVE_X1 = 232;
-  const VALVE_X2 = 300;
-  const ELBOW_X = 342;
-  const NOZZLE_END_Y = 180;
-  const WHEEL_CX = 382;
+  const VALVE_X1 = 224;
+  const VALVE_X2 = 290;
+  const ELBOW_X = 332;
+  const NOZZLE_END_Y = 178;
+  const WHEEL_CX = 374;
   const WHEEL_CY = 214;
-  const WHEEL_R = 33;
-  const LOWER_X1 = 252;
+  const LOWER_X1 = 246;
   const LOWER_X2 = 528;
-  const LOWER_TOP = 258;
-  const LOWER_BOT = 296;
+  const LOWER_TOP = 260;
+  const LOWER_BOT = 298;
+  const PULLEY_X = 456;
+  const PULLEY_Y = 126;
 
-  // Sembrar gotas iniciales en Tramo 1 si hay agua
   for (let i = 0; i < 16; i++) {
     drops.push({
       phase: 'pipe',
-      x: 132 + i * 11,
+      x: 128 + i * 11,
       y: PIPE_MID_Y + ((i % 3) - 1) * 5.5,
       vx: 0,
       vy: 0,
@@ -219,25 +235,42 @@ export function mountGravityWaterAnalogy(
     });
   }
 
+  const wheelSpec = (tier: WheelSizeTier) => {
+    if (tier === 'large') return { r: 39, blades: 10, accent: '#38bdf8', label: 'RUEDA GRANDE' };
+    if (tier === 'medium') return { r: 33, blades: 8, accent: '#f59e0b', label: 'RUEDA MEDIA' };
+    return { r: 27, blades: 6, accent: '#00c2b5', label: 'RUEDA CHICA' };
+  };
+
   const updateDomReadouts = () => {
+    const isBroken = failureMode === 'wheel_broken' || failureMode === 'valve_burst';
     const hPct = Math.round(state.nivelAgua * 100);
     host.querySelector('#wa-height-lbl')!.textContent = `${state.heightMeters.toFixed(1)} m (${hPct}%)`;
     host.querySelector('#wa-valve-lbl')!.textContent =
-      state.aperturaPct <= 0 ? '0% (Cerrada)' : `${Math.round(state.aperturaPct)}% abierta`;
+      failureMode === 'valve_burst'
+        ? '¡Llave rota!'
+        : state.aperturaPct <= 0
+          ? '0% (Cerrada)'
+          : `${Math.round(state.aperturaPct)}% abierta`;
 
     host.querySelector('#weq-h-val')!.textContent = `${state.heightMeters.toFixed(1)} m`;
     host.querySelector('#weq-v-val')!.textContent = `${state.heightMeters.toFixed(1)} V`;
 
     const closedPct = Math.round(100 - state.aperturaPct);
-    host.querySelector('#weq-close-val')!.textContent = `${closedPct}% cerrada`;
+    host.querySelector('#weq-close-val')!.textContent =
+      failureMode === 'valve_burst' ? 'Llave rota (abierta)' : `${closedPct}% cerrada`;
     host.querySelector('#weq-r-val')!.textContent = Number.isFinite(state.ohms)
       ? formatOhms(state.ohms)
       : '∞ Ω (Abierto)';
 
-    host.querySelector('#weq-flow-val')!.textContent = `${state.flowLps.toFixed(2)} L/s`;
-    host.querySelector('#weq-i-val')!.textContent = `${state.flowMa.toFixed(1)} mA`;
-    host.querySelector('#weq-rpm-val')!.textContent = `${state.rpm} RPM`;
-    host.querySelector('#weq-p-val')!.textContent = `${state.powerW.toFixed(3)} W`;
+    const dispMa = isBroken ? 0 : state.flowMa;
+    const dispLps = isBroken ? 0 : state.flowLps;
+    const dispRpm = isBroken ? 0 : state.rpm;
+    const dispW = isBroken ? 0 : state.powerW;
+
+    host.querySelector('#weq-flow-val')!.textContent = `${dispLps.toFixed(2)} L/s`;
+    host.querySelector('#weq-i-val')!.textContent = `${dispMa.toFixed(1)} mA`;
+    host.querySelector('#weq-rpm-val')!.textContent = `${dispRpm} RPM`;
+    host.querySelector('#weq-p-val')!.textContent = `${dispW.toFixed(3)} W`;
   };
 
   hSlider.addEventListener('input', () => {
@@ -265,7 +298,6 @@ export function mountGravityWaterAnalogy(
     lastTs = now;
     simTime += dt;
 
-    // DPR seguro para pantallas retina
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const targetW = Math.round(W * dpr);
     const targetH = Math.round(H * dpr);
@@ -275,20 +307,41 @@ export function mountGravityWaterAnalogy(
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Física por cuadro
-    const velPx = state.velocityNorm * 135; // px/s en tramo normal
+    const isWheelBroken = failureMode === 'wheel_broken';
+    const isValveBurst = failureMode === 'valve_burst';
+    const circuitBlocked = isWheelBroken || isValveBurst;
+    const velPx = circuitBlocked ? 0 : state.velocityNorm * 165;
     const valveGap = (state.aperturaPct / 100) * PIPE_H;
-    const isFlowing = state.nivelAgua > 0 && state.aperturaPct > 0;
+    const isFlowing = !circuitBlocked && state.nivelAgua > 0 && state.aperturaPct > 0;
+    const wCfg = wheelSpec(wheelTier);
 
-    // Nivel de estanque inferior drena lentamente hacia equilibrio salvo cuando recibe chorro
     lowerFill = Math.max(0.16, lowerFill - dt * 0.014);
 
+    // Si la llave reventó (resistencia quemada), brotan chorros de fuga hacia afuera sin llegar a la rueda
+    if (isValveBurst && state.nivelAgua > 0) {
+      leakAccum += dt * 34;
+      while (leakAccum >= 1) {
+        leakAccum -= 1;
+        const valveCx = (VALVE_X1 + VALVE_X2) / 2;
+        const upward = Math.random() > 0.25;
+        drops.push({
+          phase: 'leak',
+          x: valveCx + (Math.random() - 0.5) * 14,
+          y: upward ? PIPE_Y1 - 4 : PIPE_Y2 + 4,
+          vx: (Math.random() - 0.35) * 170,
+          vy: upward ? -160 - Math.random() * 140 : 60 + Math.random() * 90,
+          r: 3.8 + Math.random() * 1.8,
+          laneOffset: 0,
+          hitWheel: false,
+        });
+      }
+    }
+
     if (isFlowing) {
-      // Generación de gotas proporcional a velocidad y presión
-      spawnAccum += dt * (4.5 + state.velocityNorm * 12);
+      spawnAccum += dt * (5.5 + state.velocityNorm * 14);
       while (spawnAccum >= 1) {
         spawnAccum -= 1;
-        const lane = ((Math.random() * 2 - 1) * 0.72);
+        const lane = Math.random() * 2 - 1;
         drops.push({
           phase: 'pipe',
           x: TANK_X + TANK_W,
@@ -296,16 +349,13 @@ export function mountGravityWaterAnalogy(
           vx: velPx,
           vy: 0,
           r: 4.8 + state.nivelAgua * 2.0,
-          laneOffset: lane,
+          laneOffset: lane * 0.72,
           hitWheel: false,
         });
       }
-    } else if (state.nivelAgua <= 0) {
-      // Si nivelAgua === 0, partículas en tubería frenan inmediatamente
+    } else if (state.nivelAgua <= 0 || isWheelBroken) {
       for (const p of drops) {
-        if (p.phase === 'pipe') {
-          p.vx = 0;
-        }
+        if (p.phase === 'pipe') p.vx = 0;
       }
     }
 
@@ -316,22 +366,15 @@ export function mountGravityWaterAnalogy(
       if (p.phase === 'pipe') {
         if (!isFlowing) {
           p.vx = 0;
-          // Quitar gotas colgantes si se vació el estanque arriba
-          if (state.nivelAgua <= 0 && p.x > VALVE_X2) {
-            p.phase = 'fall';
-          }
+          if (state.nivelAgua <= 0 && p.x > VALVE_X2) p.phase = 'fall';
           continue;
         }
-
         const inValve = p.x >= VALVE_X1 - 6 && p.x <= VALVE_X2 + 6;
         const speedFactor = inValve && valveGap > 1 ? Math.min(2.1, PIPE_H / Math.max(7, valveGap)) : 1;
         p.vx = velPx * speedFactor;
         p.x += p.vx * dt;
 
-        // En Tramo 2 las partículas se estrechan / alinean al centro según espacio entre compuertas
-        const allowedHalf = inValve
-          ? Math.max(1.5, valveGap * 0.35)
-          : PIPE_H * 0.35;
+        const allowedHalf = inValve ? Math.max(1.5, valveGap * 0.35) : PIPE_H * 0.35;
         const targetY = PIPE_MID_Y + p.laneOffset * allowedHalf;
         p.y += (targetY - p.y) * Math.min(1, dt * 14);
 
@@ -339,26 +382,30 @@ export function mountGravityWaterAnalogy(
           p.phase = 'fall';
           p.x = ELBOW_X + (Math.random() - 0.5) * 7;
           p.y = PIPE_MID_Y + 6;
-          p.vx = (Math.random() - 0.5) * 14;
-          p.vy = 45 + state.nivelAgua * 90;
+          p.vx = (Math.random() - 0.5) * 12;
+          p.vy = 55 + state.nivelAgua * 95;
+        }
+      } else if (p.phase === 'leak') {
+        p.vy += 420 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.y > H + 10 || p.x < 0 || p.x > W + 10) {
+          drops.splice(i, 1);
         }
       } else {
-        // Caída libre acelerada por gravedad en Tramo 3 sobre las paletas
-        p.vy += 430 * dt;
+        p.vy += 450 * dt;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
 
-        // Impacto sobre las paletas izquierdas de la rueda hidráulica
         const dx = p.x - WHEEL_CX;
         const dy = p.y - WHEEL_CY;
         const dist = Math.hypot(dx, dy);
-        if (!p.hitWheel && dist <= WHEEL_R + 4 && dist >= WHEEL_R - 14 && dx < 12) {
+        if (!p.hitWheel && dist <= wCfg.r + 4 && dist >= wCfg.r - 15 && dx < 14) {
           p.hitWheel = true;
-          p.vx = -22 - Math.random() * 18;
-          p.vy *= 0.45;
+          p.vx = -26 - Math.random() * 20;
+          p.vy *= 0.44;
         }
 
-        // Desaparecer al tocar superficie del estanque inferior haciéndolo subir levemente
         if (p.y >= lowerWaterTopY) {
           if (p.x >= LOWER_X1 + 6 && p.x <= LOWER_X2 - 6) {
             lowerFill = Math.min(0.74, lowerFill + 0.0022);
@@ -373,8 +420,7 @@ export function mountGravityWaterAnalogy(
       }
     }
 
-    // Limitar partículas para rendimiento 60fps
-    if (drops.length > 95) drops.splice(0, drops.length - 95);
+    if (drops.length > 120) drops.splice(0, drops.length - 120);
 
     for (let i = ripples.length - 1; i >= 0; i--) {
       const rp = ripples[i];
@@ -383,14 +429,15 @@ export function mountGravityWaterAnalogy(
       if (rp.alpha <= 0) ripples.splice(i, 1);
     }
 
-    // Rotación de rueda proporcional a nivelAgua * velocidad (= V * I) + levantamiento de pesa
-    const rotInc = dt * (state.nivelAgua * state.velocityNorm) * 7.2;
-    wheelAngle += rotInc;
+    // Rotación ágil y visible proporcional a RPM (V * I)
+    const omega = isFlowing ? Math.max(1.2, (state.rpm / 60) * Math.PI * 1.25) : 0;
+    wheelAngle += dt * omega;
     if (isFlowing) {
-      weightLift += dt * Math.min(0.32, state.nivelAgua * state.velocityNorm * 0.22);
+      weightLift += dt * Math.min(0.45, Math.max(0.05, (state.rpm / 220) * 0.35));
       if (weightLift > 1) weightLift = 0.05;
+    } else if (isWheelBroken) {
+      weightLift = Math.max(0.02, weightLift - dt * 1.6); // cuerda rota: cae la pesa
     } else {
-      // Cae suavemente al reposo si no hay par motor
       weightLift = Math.max(0.05, weightLift - dt * 0.08);
     }
 
@@ -400,7 +447,6 @@ export function mountGravityWaterAnalogy(
     ctx.fillStyle = '#11151c';
     ctx.fillRect(0, 0, W, H);
 
-    // Cuadrícula sutil de laboratorio
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
     ctx.lineWidth = 1;
     for (let gx = 20; gx < W; gx += 28) {
@@ -416,7 +462,7 @@ export function mountGravityWaterAnalogy(
       ctx.stroke();
     }
 
-    // 1. ESTANQUE INFERIOR (Recipiente ancho abierto abajo a la derecha — SIN retorno)
+    // 1. ESTANQUE INFERIOR
     const lowerWaterH = Math.max(0, LOWER_BOT - lowerWaterTopY);
     if (lowerWaterH > 1) {
       const gradBot = ctx.createLinearGradient(0, lowerWaterTopY, 0, LOWER_BOT);
@@ -425,7 +471,6 @@ export function mountGravityWaterAnalogy(
       ctx.fillStyle = gradBot;
       ctx.fillRect(LOWER_X1 + 3, lowerWaterTopY, LOWER_X2 - LOWER_X1 - 6, lowerWaterH - 2);
 
-      // Olas suaves y ondas de salpicadura en la superficie
       ctx.strokeStyle = '#7dd3fc';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
@@ -441,7 +486,6 @@ export function mountGravityWaterAnalogy(
         ctx.stroke();
       }
     }
-    // Paredes en U abiertas arriba del estanque inferior
     ctx.strokeStyle = '#64748b';
     ctx.lineWidth = 3;
     ctx.lineJoin = 'round';
@@ -457,14 +501,11 @@ export function mountGravityWaterAnalogy(
     ctx.textAlign = 'center';
     ctx.fillText('ESTANQUE INFERIOR (DESCARGA)', (LOWER_X1 + LOWER_X2) / 2, LOWER_BOT - 7);
 
-    // 2. TUBERÍA EN ESCALÓN (Tramo 1 -> Tramo 2 Válvula -> Tramo 3 Codo 90° vertical)
+    // 2. TUBERÍA EN ESCALÓN
     ctx.fillStyle = '#1e293b';
-    // Interior horizontal
     ctx.fillRect(TANK_X + TANK_W - 2, PIPE_Y1, ELBOW_X - (TANK_X + TANK_W) + 15, PIPE_H);
-    // Interior vertical boquilla Tramo 3
     ctx.fillRect(ELBOW_X - 13, PIPE_Y1, 26, NOZZLE_END_Y - PIPE_Y1);
 
-    // Agua de fondo tenue dentro del tramo 1 si hay agua arriba
     if (state.nivelAgua > 0) {
       ctx.fillStyle = `rgba(37, 99, 235, ${(0.28 + state.nivelAgua * 0.26).toFixed(2)})`;
       ctx.fillRect(TANK_X + TANK_W, PIPE_Y1 + 1, VALVE_X1 - (TANK_X + TANK_W), PIPE_H - 2);
@@ -475,21 +516,18 @@ export function mountGravityWaterAnalogy(
       }
     }
 
-    // Paredes de tubería
     ctx.strokeStyle = '#64748b';
     ctx.lineWidth = 2.6;
     ctx.beginPath();
-    // Pared superior Tramo 1 -> esquina externa codo -> bajada derecha Tramo 3
     ctx.moveTo(TANK_X + TANK_W, PIPE_Y1);
     ctx.lineTo(ELBOW_X + 13, PIPE_Y1);
     ctx.lineTo(ELBOW_X + 13, NOZZLE_END_Y);
-    // Pared inferior Tramo 1 -> esquina interna codo -> bajada izquierda Tramo 3
     ctx.moveTo(TANK_X + TANK_W, PIPE_Y2);
     ctx.lineTo(ELBOW_X - 13, PIPE_Y2);
     ctx.lineTo(ELBOW_X - 13, NOZZLE_END_Y);
     ctx.stroke();
 
-    // 3. PARTÍCULAS DE AGUA (Tramo 1 densas/grandes -> Tramo 2 estrechadas -> Tramo 3 caída libre)
+    // 3. PARTÍCULAS
     for (const p of drops) {
       if (p.phase === 'pipe' && state.nivelAgua <= 0) continue;
       if (p.phase === 'pipe') {
@@ -505,8 +543,12 @@ export function mountGravityWaterAnalogy(
         ctx.beginPath();
         ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
+      } else if (p.phase === 'leak') {
+        ctx.fillStyle = '#7dd3fc';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
       } else {
-        // Gota alargada verticalmente por gravedad
         ctx.fillStyle = p.hitWheel ? '#7dd3fc' : '#38bdf8';
         ctx.beginPath();
         ctx.ellipse(p.x, p.y, 3.2, 5.4, 0, 0, Math.PI * 2);
@@ -514,10 +556,25 @@ export function mountGravityWaterAnalogy(
       }
     }
 
-    // 4. VÁLVULA / LLAVE DE PASO EN TRAMO 2 (Compuertas que cierran hasta tocarse en 0%)
+    // 4. VÁLVULA / LLAVE DE PASO (con vibración en sobrecarga o rotura con fuga)
     const valveCx = (VALVE_X1 + VALVE_X2) / 2;
-    ctx.fillStyle = 'rgba(51, 65, 85, 0.55)';
-    ctx.strokeStyle = '#94a3b8';
+    const vShakeX = failureMode === 'valve_overload' ? Math.sin(simTime * 55) * 1.8 : 0;
+    const vShakeY = failureMode === 'valve_overload' ? Math.cos(simTime * 48) * 1.4 : 0;
+    ctx.save();
+    ctx.translate(vShakeX, vShakeY);
+
+    ctx.fillStyle =
+      failureMode === 'valve_burst'
+        ? 'rgba(185, 28, 28, 0.55)'
+        : failureMode === 'valve_overload'
+          ? 'rgba(234, 88, 12, 0.58)'
+          : 'rgba(51, 65, 85, 0.55)';
+    ctx.strokeStyle =
+      failureMode === 'valve_burst'
+        ? '#ef4444'
+        : failureMode === 'valve_overload'
+          ? '#fb923c'
+          : '#94a3b8';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(VALVE_X1, PIPE_Y1 - 10, VALVE_X2 - VALVE_X1, PIPE_H + 20, 6);
@@ -525,30 +582,48 @@ export function mountGravityWaterAnalogy(
     ctx.stroke();
 
     const gateReach = Math.max(0, (PIPE_H - valveGap) / 2);
-    const gateW = 24;
+    const gateW = 22;
     const gateX = valveCx - gateW / 2;
-    ctx.fillStyle = state.aperturaPct <= 0 ? '#ef4444' : '#00c2b5';
+    ctx.fillStyle = isValveBurst
+      ? '#450a0a'
+      : state.aperturaPct <= 0
+        ? '#ef4444'
+        : failureMode === 'valve_overload'
+          ? '#f97316'
+          : '#00c2b5';
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 1.4;
-    if (gateReach > 0.3) {
-      // Compuerta superior
+    if (gateReach > 0.3 && !isValveBurst) {
       ctx.fillRect(gateX, PIPE_Y1, gateW, gateReach);
       ctx.strokeRect(gateX, PIPE_Y1, gateW, gateReach);
-      // Compuerta inferior
       ctx.fillRect(gateX, PIPE_Y2 - gateReach, gateW, gateReach);
       ctx.strokeRect(gateX, PIPE_Y2 - gateReach, gateW, gateReach);
     }
-    // Tallo + manilla de llave arriba
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(valveCx, PIPE_Y1 - 10);
-    ctx.lineTo(valveCx, PIPE_Y1 - 24);
-    ctx.moveTo(valveCx - 14, PIPE_Y1 - 24);
-    ctx.lineTo(valveCx + 14, PIPE_Y1 - 24);
-    ctx.stroke();
 
-    // 5. ESTANQUE SUPERIOR (Forma en U SIN tapa arriba + regla 0 m..10 m)
+    // Grietas rojas si la llave se rompió
+    if (isValveBurst) {
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(valveCx - 16, PIPE_Y1 - 8);
+      ctx.lineTo(valveCx - 4, PIPE_MID_Y - 2);
+      ctx.lineTo(valveCx - 12, PIPE_Y2 + 8);
+      ctx.moveTo(valveCx + 6, PIPE_Y1 - 10);
+      ctx.lineTo(valveCx + 14, PIPE_MID_Y + 4);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(valveCx, PIPE_Y1 - 10);
+      ctx.lineTo(valveCx, PIPE_Y1 - 24);
+      ctx.moveTo(valveCx - 13, PIPE_Y1 - 24);
+      ctx.lineTo(valveCx + 13, PIPE_Y1 - 24);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 5. ESTANQUE SUPERIOR
     if (state.nivelAgua > 0) {
       const fillH = state.nivelAgua * (TANK_BOT - TANK_TOP - 2);
       const waterY = TANK_BOT - fillH;
@@ -558,12 +633,11 @@ export function mountGravityWaterAnalogy(
       ctx.fillStyle = gradTop;
       ctx.fillRect(TANK_X + 2, waterY, TANK_W - 4, fillH);
 
-      // Menisco animado arriba del agua
       ctx.strokeStyle = '#bae6fd';
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let wx = TANK_X + 2; wx <= TANK_X + TANK_W - 2; wx += 4) {
-        const wy = waterY + Math.sin(wx * 0.14 + simTime * 4) * (isFlowing ? 1.5 : 0.4);
+        const wy = waterY + Math.sin(wx * 0.14 + simTime * 4) * (isFlowing || isValveBurst ? 1.5 : 0.4);
         if (wx === TANK_X + 2) ctx.moveTo(wx, wy);
         else ctx.lineTo(wx, wy);
       }
@@ -575,7 +649,6 @@ export function mountGravityWaterAnalogy(
       ctx.fillText('VACÍO', TANK_X + TANK_W / 2, TANK_BOT - 12);
     }
 
-    // Paredes en U abiertas arriba (con abertura de salida derecha para Tramo 1)
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -586,7 +659,6 @@ export function mountGravityWaterAnalogy(
     ctx.lineTo(TANK_X + TANK_W, PIPE_Y1);
     ctx.stroke();
 
-    // Escala graduada en metros (0 m a 10 m) en pared izquierda
     ctx.strokeStyle = '#94a3b8';
     ctx.fillStyle = '#cbd5e1';
     ctx.lineWidth = 1.2;
@@ -601,49 +673,67 @@ export function mountGravityWaterAnalogy(
       ctx.fillText(`${m} m`, TANK_X - 7, ty + 3);
     }
 
-    // 6. RUEDA HIDRÁULICA (Derecha nivel medio) + CUERDA + PESA QUE SUBE
+    // 6. RUEDA HIDRÁULICA (tamaño dinámico + animación de sobrecarga o rotura)
+    const wShakeX = failureMode === 'wheel_overload' ? Math.sin(simTime * 60) * 2.2 : 0;
+    const wShakeY = failureMode === 'wheel_overload' ? Math.cos(simTime * 52) * 1.8 : 0;
     ctx.save();
-    ctx.translate(WHEEL_CX, WHEEL_CY);
+    ctx.translate(WHEEL_CX + wShakeX, WHEEL_CY + wShakeY);
     ctx.rotate(wheelAngle);
 
-    // Aro exterior e interior
-    ctx.strokeStyle = '#475569';
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = isWheelBroken
+      ? '#ef4444'
+      : failureMode === 'wheel_overload'
+        ? '#fb923c'
+        : '#475569';
+    ctx.lineWidth = wheelTier === 'large' ? 3.5 : 2.5;
     ctx.beginPath();
-    ctx.arc(0, 0, WHEEL_R, 0, Math.PI * 2);
+    if (isWheelBroken) {
+      // Aro fracturado con hueco en el cuadrante roto
+      ctx.arc(0, 0, wCfg.r, 0.45, Math.PI * 1.78);
+    } else {
+      ctx.arc(0, 0, wCfg.r, 0, Math.PI * 2);
+    }
     ctx.stroke();
 
-    // 8 paletas
-    for (let b = 0; b < 8; b++) {
-      const ang = (b * Math.PI) / 4;
+    for (let b = 0; b < wCfg.blades; b++) {
+      // Si la rueda se rompió, faltan 3 paletas
+      if (isWheelBroken && (b === 1 || b === 2 || b === 4)) continue;
+      const ang = (b * Math.PI * 2) / wCfg.blades;
       ctx.save();
       ctx.rotate(ang);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = isWheelBroken ? '#64748b' : '#38bdf8';
+      ctx.lineWidth = wheelTier === 'large' ? 3.8 : 3;
       ctx.beginPath();
       ctx.moveTo(7, 0);
-      ctx.lineTo(WHEEL_R, 0);
+      ctx.lineTo(wCfg.r, 0);
       ctx.stroke();
-      ctx.fillStyle = '#00c2b5';
-      ctx.fillRect(WHEEL_R - 7, -3, 8, 6);
+      ctx.fillStyle = isWheelBroken ? '#ef4444' : wCfg.accent;
+      ctx.fillRect(wCfg.r - 7, -3, 8, 6);
       ctx.restore();
     }
-    // Eje central de la rueda
-    ctx.fillStyle = '#eee3cc';
+
+    ctx.fillStyle = isWheelBroken ? '#7f1d1d' : '#eee3cc';
     ctx.beginPath();
-    ctx.arc(0, 0, 7, 0, Math.PI * 2);
+    ctx.arc(0, 0, wheelTier === 'large' ? 9 : 7, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#00c2b5';
+    ctx.strokeStyle = isWheelBroken ? '#ef4444' : wCfg.accent;
     ctx.lineWidth = 2.5;
     ctx.stroke();
+
+    if (isWheelBroken) {
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-12, -12);
+      ctx.lineTo(12, 12);
+      ctx.moveTo(12, -12);
+      ctx.lineTo(-12, 12);
+      ctx.stroke();
+    }
     ctx.restore();
 
-    // Polea superior + cuerda enrollada desde el eje que levanta una pesa
-    const PULLEY_X = 486;
-    const PULLEY_Y = 126;
-    const weightY = 236 - weightLift * 84; // Sube hacia 152 según el trabajo mecánico
-
-    // Soporte de polea
+    // Polea superior + cuerda + pesa
+    const weightY = 236 - weightLift * 82;
     ctx.strokeStyle = '#64748b';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -651,17 +741,17 @@ export function mountGravityWaterAnalogy(
     ctx.lineTo(PULLEY_X, PULLEY_Y);
     ctx.stroke();
 
-    // Cuerda tensa desde eje rueda -> polea -> pesa
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(WHEEL_CX + 4, WHEEL_CY - 4);
-    ctx.lineTo(PULLEY_X - 6, PULLEY_Y);
-    ctx.lineTo(PULLEY_X + 7, PULLEY_Y);
-    ctx.lineTo(PULLEY_X + 7, weightY);
-    ctx.stroke();
+    if (!isWheelBroken) {
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(WHEEL_CX + 4, WHEEL_CY - 4);
+      ctx.lineTo(PULLEY_X - 6, PULLEY_Y);
+      ctx.lineTo(PULLEY_X + 7, PULLEY_Y);
+      ctx.lineTo(PULLEY_X + 7, weightY);
+      ctx.stroke();
+    }
 
-    // Rueda de polea
     ctx.fillStyle = '#334155';
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 2;
@@ -670,9 +760,8 @@ export function mountGravityWaterAnalogy(
     ctx.fill();
     ctx.stroke();
 
-    // Pesa colgante que sube al girar
     const wBoxX = PULLEY_X + 7;
-    ctx.fillStyle = '#e88635';
+    ctx.fillStyle = isWheelBroken ? '#78350f' : '#e88635';
     ctx.strokeStyle = '#fed7aa';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -689,7 +778,6 @@ export function mountGravityWaterAnalogy(
     // =====================================================================
     ctx.textAlign = 'center';
 
-    // Arriba izquierda: ALTURA DEL AGUA (Presión)
     ctx.fillStyle = '#5ef2e6';
     ctx.font = 'bold 10.5px "JetBrains Mono", monospace';
     ctx.fillText('ALTURA DEL AGUA (Presión)', TANK_X + TANK_W / 2 + 6, 20);
@@ -697,40 +785,64 @@ export function mountGravityWaterAnalogy(
     ctx.font = 'bold 11px "JetBrains Mono", monospace';
     ctx.fillText(`${state.heightMeters.toFixed(1)} m`, TANK_X + TANK_W / 2, 34);
 
-    // Centro: LLAVE DE PASO (Oposición)
-    ctx.fillStyle = '#fbbf24';
+    ctx.fillStyle = isValveBurst
+      ? '#f87171'
+      : failureMode === 'valve_overload'
+        ? '#fb923c'
+        : '#fbbf24';
     ctx.font = 'bold 10.5px "JetBrains Mono", monospace';
-    ctx.fillText('LLAVE DE PASO (Oposición)', valveCx, 90);
-    ctx.fillStyle = state.aperturaPct <= 0 ? '#f87171' : '#cbd5e1';
+    ctx.fillText('LLAVE DE PASO (Oposición)', valveCx, 82);
+    ctx.fillStyle = isValveBurst ? '#fca5a5' : state.aperturaPct <= 0 ? '#f87171' : '#cbd5e1';
     ctx.font = '10px "JetBrains Mono", monospace';
     ctx.fillText(
-      state.aperturaPct <= 0 ? 'Cerrada (0%)' : `Apertura: ${Math.round(state.aperturaPct)}%`,
+      isValveBurst
+        ? '¡LLAVE ROTA · FUGA!'
+        : failureMode === 'valve_overload'
+          ? '¡PRESIÓN EXTREMA!'
+          : state.aperturaPct <= 0
+            ? 'Cerrada (0%)'
+            : `Apertura: ${Math.round(state.aperturaPct)}%`,
       valveCx,
       192
     );
 
-    // Chorro: CAUDAL (Litros/seg)
+    const dispLps = circuitBlocked ? 0 : state.flowLps;
+    const dispRpm = circuitBlocked ? 0 : state.rpm;
+    const dispW = circuitBlocked ? 0 : state.powerW;
+
     ctx.fillStyle = '#7dd3fc';
     ctx.font = 'bold 10.5px "JetBrains Mono", monospace';
-    ctx.fillText('CAUDAL (Litros/seg)', ELBOW_X + 26, 56);
+    ctx.fillText('CAUDAL (Litros/seg)', ELBOW_X + 24, 52);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 11.5px "JetBrains Mono", monospace';
-    ctx.fillText(`${state.flowLps.toFixed(2)} L/s`, ELBOW_X + 26, 72);
+    ctx.fillText(`${dispLps.toFixed(2)} L/s`, ELBOW_X + 24, 68);
 
-    // Rueda / Tacómetro: RUEDA HIDRÁULICA (Trabajo/seg)
-    ctx.fillStyle = '#5ef2e6';
+    ctx.fillStyle = isWheelBroken
+      ? '#f87171'
+      : failureMode === 'wheel_overload'
+        ? '#fb923c'
+        : '#5ef2e6';
     ctx.font = 'bold 10px "JetBrains Mono", monospace';
-    ctx.fillText('RUEDA HIDRÁULICA', WHEEL_CX + 58, 92);
-    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(`RUEDA HIDRÁULICA (${wCfg.label})`, W - 96, 86);
+    ctx.fillStyle = isWheelBroken ? '#fca5a5' : '#cbd5e1';
     ctx.font = '9.5px "JetBrains Mono", monospace';
-    ctx.fillText('(Trabajo/seg)', WHEEL_CX + 58, 105);
+    ctx.fillText(
+      isWheelBroken
+        ? '¡RUEDA ROTA · FLUJO DETENIDO!'
+        : failureMode === 'wheel_overload'
+          ? '¡EXCESO DE GIRO!'
+          : '(Trabajo/seg)',
+      W - 96,
+      99
+    );
 
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 10px "JetBrains Mono", monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${state.rpm} RPM`, PULLEY_X + 22, PULLEY_Y + 4);
+    // Lectura derecha alineada al borde interno para que nunca se corte
+    ctx.textAlign = 'right';
+    ctx.fillStyle = isWheelBroken ? '#f87171' : '#fbbf24';
+    ctx.font = 'bold 10.5px "JetBrains Mono", monospace';
+    ctx.fillText(`${dispRpm} RPM`, W - 12, PULLEY_Y + 4);
     ctx.fillStyle = '#7dd3fc';
-    ctx.fillText(`${state.powerW.toFixed(3)} W mec.`, PULLEY_X + 22, PULLEY_Y + 18);
+    ctx.fillText(`${dispW.toFixed(3)} W mec.`, W - 12, PULLEY_Y + 18);
 
     rafId = requestAnimationFrame(drawFrame);
   };
@@ -738,12 +850,18 @@ export function mountGravityWaterAnalogy(
   rafId = requestAnimationFrame(drawFrame);
 
   return {
-    syncFromElectric(volts: number, ohms: number, isClosed: boolean) {
+    syncFromElectric(
+      volts: number,
+      ohms: number,
+      isClosed: boolean,
+      nextWheelTier?: WheelSizeTier,
+      nextFailureMode?: WaterFailureMode
+    ) {
       heightMeters = Math.max(0, Math.min(10, volts));
       overrideOhms = isClosed ? undefined : ohms;
       aperturaPct = isClosed ? 0 : ohmsToAperturaPct(ohms, false);
-      hSlider.value = String(heightMeters);
-      vSlider.value = String(aperturaPct);
+      if (nextWheelTier) wheelTier = nextWheelTier;
+      if (nextFailureMode) failureMode = nextFailureMode;
       state = computeHydraulicState(heightMeters, aperturaPct, overrideOhms);
       updateDomReadouts();
     },
