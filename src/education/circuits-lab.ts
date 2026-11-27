@@ -1,8 +1,4 @@
-import { formatOhms, resistorBandsForOhms } from '../lab/components/catalog';
-
-function hexCss(hex: number): string {
-  return `#${hex.toString(16).padStart(6, '0')}`;
-}
+import { formatOhms } from '../lab/components/catalog';
 
 function mVar(sym: string, sub?: string): string {
   return `<span class="math-var">${sym}${sub ? `<sub>${sub}</sub>` : ''}</span>`;
@@ -82,31 +78,75 @@ export function solveMultiSourceCircuit(
 }
 
 function svgResistorHoriz(cx: number, cy: number, name: string, ohms: number, open = false): string {
-  const bands = resistorBandsForOhms(ohms);
+  // Símbolo eléctrico estándar ANSI zigzag horizontal
   return `
-    <g transform="translate(${cx - 34}, ${cy - 14})">
-      <rect x="0" y="0" width="68" height="28" rx="9" fill="${open ? '#334155' : '#dec8a0'}" stroke="${open ? '#ef4444' : '#94a3b8'}" stroke-width="2" />
-      <rect x="10" y="0" width="7" height="28" fill="${open ? '#475569' : hexCss(bands[0])}" />
-      <rect x="22" y="0" width="7" height="28" fill="${open ? '#475569' : hexCss(bands[1])}" />
-      <rect x="34" y="0" width="7" height="28" fill="${open ? '#475569' : hexCss(bands[2])}" />
-      <rect x="50" y="0" width="6" height="28" fill="${open ? '#475569' : hexCss(bands[3])}" />
-      ${open ? `<line x1="20" y1="-4" x2="48" y2="32" stroke="#ef4444" stroke-width="3" />` : ''}
-      <text x="34" y="42" text-anchor="middle" fill="${open ? '#fca5a5' : '#e2e8f0'}" font-family="monospace" font-size="10.5" font-weight="bold">${name} · ${formatOhms(ohms)}</text>
+    <g transform="translate(${cx - 34}, ${cy - 16})">
+      <rect x="0" y="6" width="68" height="20" rx="4" fill="#181818" />
+      ${
+        open
+          ? `<line x1="2" y1="16" x2="18" y2="16" stroke="#ef4444" stroke-width="2.6" />
+             <circle cx="18" cy="16" r="3" fill="#ef4444" />
+             <line x1="18" y1="16" x2="42" y2="3" stroke="#fca5a5" stroke-width="2.6" stroke-linecap="round" />
+             <circle cx="50" cy="16" r="3" fill="#ef4444" />
+             <line x1="50" y1="16" x2="66" y2="16" stroke="#ef4444" stroke-width="2.6" />`
+          : `<path d="M2 16 L11 16 L16 6 L24 26 L32 6 L40 26 L48 6 L56 26 L60 16 L66 16" fill="none" stroke="#fbbf24" stroke-width="2.8" stroke-linejoin="round" />`
+      }
+      <text x="34" y="40" text-anchor="middle" fill="${open ? '#fca5a5' : '#eee3cc'}" font-family="monospace" font-size="10.2" font-weight="bold">${name} (${formatOhms(ohms)})</text>
     </g>
   `;
 }
 
 function svgResistorVert(cx: number, cy: number, name: string, ohms: number, open = false): string {
-  const bands = resistorBandsForOhms(ohms);
+  // Símbolo eléctrico estándar ANSI zigzag vertical
   return `
-    <g transform="translate(${cx - 14}, ${cy - 28})">
-      <rect x="0" y="0" width="28" height="56" rx="8" fill="${open ? '#334155' : '#dec8a0'}" stroke="${open ? '#ef4444' : '#94a3b8'}" stroke-width="2" />
-      <rect x="0" y="9" width="28" height="6" fill="${open ? '#475569' : hexCss(bands[0])}" />
-      <rect x="0" y="19" width="28" height="6" fill="${open ? '#475569' : hexCss(bands[1])}" />
-      <rect x="0" y="29" width="28" height="6" fill="${open ? '#475569' : hexCss(bands[2])}" />
-      <rect x="0" y="41" width="28" height="5" fill="${open ? '#475569' : hexCss(bands[3])}" />
-      ${open ? `<line x1="-4" y1="16" x2="32" y2="40" stroke="#ef4444" stroke-width="3" />` : ''}
-      <text x="14" y="70" text-anchor="middle" fill="${open ? '#fca5a5' : '#e2e8f0'}" font-family="monospace" font-size="10.5" font-weight="bold">${name} (${formatOhms(ohms)})</text>
+    <g transform="translate(${cx - 16}, ${cy - 30})">
+      <rect x="6" y="0" width="20" height="60" rx="4" fill="#181818" />
+      ${
+        open
+          ? `<line x1="16" y1="2" x2="16" y2="16" stroke="#ef4444" stroke-width="2.6" />
+             <circle cx="16" cy="16" r="3" fill="#ef4444" />
+             <line x1="16" y1="16" x2="30" y2="38" stroke="#fca5a5" stroke-width="2.6" stroke-linecap="round" />
+             <circle cx="16" cy="44" r="3" fill="#ef4444" />
+             <line x1="16" y1="44" x2="16" y2="58" stroke="#ef4444" stroke-width="2.6" />`
+          : `<path d="M16 2 L16 9 L6 14 L26 22 L6 30 L26 38 L6 46 L26 52 L16 55 L16 58" fill="none" stroke="#fbbf24" stroke-width="2.8" stroke-linejoin="round" />`
+      }
+      <text x="16" y="72" text-anchor="middle" fill="${open ? '#fca5a5' : '#eee3cc'}" font-family="monospace" font-size="10.2" font-weight="bold">${name} · ${formatOhms(ohms)}</text>
+    </g>
+  `;
+}
+
+function svgBatteryVert(
+  cx: number,
+  cy: number,
+  label: string,
+  valText: string,
+  inverted = false,
+  accent = '#00c2b5'
+): string {
+  // Símbolo eléctrico estándar de Fuente DC (línea larga = +, línea corta = −)
+  const topCol = inverted ? '#cbd5e1' : accent;
+  const botCol = inverted ? '#ef4444' : '#cbd5e1';
+  const topW = inverted ? 18 : 34;
+  const botW = inverted ? 34 : 18;
+  return `
+    <g transform="translate(${cx}, ${cy})">
+      <rect x="-24" y="-22" width="48" height="44" rx="6" fill="#181818" />
+      <line x1="${-topW / 2}" y1="-8" x2="${topW / 2}" y2="-8" stroke="${topCol}" stroke-width="${inverted ? 3.5 : 4}" stroke-linecap="round" />
+      <line x1="${-botW / 2}" y1="8" x2="${botW / 2}" y2="8" stroke="${botCol}" stroke-width="${inverted ? 4 : 3.5}" stroke-linecap="round" />
+      <text x="-20" y="-12" fill="${inverted ? '#94a3b8' : '#fca5a5'}" font-family="monospace" font-size="10.5" font-weight="bold">${inverted ? '−' : '+'}</text>
+      <text x="-20" y="20" fill="${inverted ? '#fca5a5' : '#94a3b8'}" font-family="monospace" font-size="10.5" font-weight="bold">${inverted ? '+' : '−'}</text>
+      <text x="0" y="34" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="10.5" font-weight="bold">${label ? `${label} ` : ''}${valText}</text>
+    </g>
+  `;
+}
+
+function svgGnd(x: number, y: number): string {
+  return `
+    <g transform="translate(${x}, ${y})">
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#94a3b8" stroke-width="2.5" />
+      <line x1="-11" y1="10" x2="11" y2="10" stroke="#e2e8f0" stroke-width="2.6" />
+      <line x1="-7" y1="15" x2="7" y2="15" stroke="#e2e8f0" stroke-width="2.4" />
+      <line x1="-3" y1="20" x2="3" y2="20" stroke="#e2e8f0" stroke-width="2.2" />
     </g>
   `;
 }
@@ -266,31 +306,33 @@ export function mountCircuitsLab(root: HTMLElement): void {
     const iParTotMa = iPar1Ma + iPar2Ma;
 
     document.getElementById('sp-ser-stage')!.innerHTML = `
-      <svg viewBox="0 0 460 190" aria-label="Circuito en serie con resistencias">
-        <rect x="48" y="42" width="364" height="118" rx="14" fill="none" stroke="#334155" stroke-width="8" />
+      <svg viewBox="0 0 460 190" aria-label="Diagrama eléctrico en serie">
+        <rect x="48" y="42" width="364" height="118" rx="14" fill="none" stroke="#334155" stroke-width="7" />
         <rect class="electron-flow ${serOpen ? 'is-stopped' : ''}" style="--flow-speed:${Math.max(0.35, 18 / Math.max(2, iSerMa)).toFixed(2)}s"
-          x="48" y="42" width="364" height="118" rx="14" fill="none" stroke="#38bdf8" stroke-width="4" />
-        <rect x="18" y="76" width="58" height="50" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2" />
-        <text x="47" y="106" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">${spVolts} V</text>
+          x="48" y="42" width="364" height="118" rx="14" fill="none" stroke="#38bdf8" stroke-width="3.5" />
+        ${svgBatteryVert(48, 100, '', `${spVolts} V`, false, '#00c2b5')}
         ${svgResistorHoriz(176, 42, 'R₁', spOhms, serOpen)}
         ${svgResistorHoriz(322, 42, 'R₂', spOhms, false)}
+        ${svgGnd(140, 160)}
       </svg>
     `;
 
     document.getElementById('sp-par-stage')!.innerHTML = `
-      <svg viewBox="0 0 460 190" aria-label="Circuito en paralelo con resistencias">
-        <rect x="48" y="34" width="186" height="128" rx="12" fill="none" stroke="#334155" stroke-width="7" />
+      <svg viewBox="0 0 460 190" aria-label="Diagrama eléctrico en paralelo">
+        <rect x="48" y="34" width="186" height="128" rx="12" fill="none" stroke="#334155" stroke-width="6.5" />
         <rect class="electron-flow ${parOpen ? 'is-stopped' : ''}" style="--flow-speed:0.75s"
-          x="48" y="34" width="186" height="128" rx="12" fill="none" stroke="#38bdf8" stroke-width="3.5" />
+          x="48" y="34" width="186" height="128" rx="12" fill="none" stroke="#38bdf8" stroke-width="3.2" />
         <path d="M 234 34 L 386 34 Q 400 34 400 48 L 400 148 Q 400 162 386 162 L 234 162"
-          fill="none" stroke="#334155" stroke-width="7" />
+          fill="none" stroke="#334155" stroke-width="6.5" />
         <path class="electron-flow" style="--flow-speed:0.75s"
           d="M 234 34 L 386 34 Q 400 34 400 48 L 400 148 Q 400 162 386 162 L 234 162"
-          fill="none" stroke="#34d399" stroke-width="3.5" />
-        <rect x="18" y="74" width="58" height="50" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2" />
-        <text x="47" y="104" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">${spVolts} V</text>
+          fill="none" stroke="#34d399" stroke-width="3.2" />
+        ${svgBatteryVert(48, 98, '', `${spVolts} V`, false, '#00c2b5')}
+        <circle cx="234" cy="34" r="4.5" fill="#facc15" />
+        <circle cx="234" cy="162" r="4.5" fill="#facc15" />
         ${svgResistorVert(234, 96, 'R₁', spOhms, parOpen)}
         ${svgResistorVert(400, 96, 'R₂', spOhms, false)}
+        ${svgGnd(130, 162)}
       </svg>
     `;
 
@@ -344,13 +386,14 @@ export function mountCircuitsLab(root: HTMLElement): void {
         <path class="electron-flow" style="--flow-speed:${Math.max(0.4, 14 / res.i3Ma).toFixed(2)}s"
           d="M278 46 L418 46 L418 175 L278 175" fill="none" stroke="#34d399" stroke-width="3"/>
 
-        <!-- Fuente DC -->
-        <rect x="24" y="88" width="56" height="50" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2.2"/>
-        <text x="52" y="118" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">${mxVolts} V</text>
+        <!-- Símbolo Fuente DC -->
+        ${svgBatteryVert(52, 110, '', `${mxVolts} V`, false, '#00c2b5')}
 
-        <!-- Nodo A -->
-        <circle cx="278" cy="46" r="6" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
-        <text x="278" y="30" text-anchor="middle" fill="#facc15" font-family="monospace" font-size="10.5" font-weight="bold">Nodo A (${res.vA.toFixed(2)} V)</text>
+        <!-- Nodos A y GND -->
+        <circle cx="278" cy="46" r="5.5" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
+        <circle cx="278" cy="175" r="4.5" fill="#facc15" />
+        ${svgGnd(132, 175)}
+        <text x="278" y="28" text-anchor="middle" fill="#facc15" font-family="monospace" font-size="10.5" font-weight="bold">Nodo A (${res.vA.toFixed(2)} V)</text>
 
         ${svgResistorHoriz(165, 46, 'R₁', mxR1)}
         ${svgResistorVert(278, 110, 'R₂', mxR2)}
@@ -398,18 +441,14 @@ export function mountCircuitsLab(root: HTMLElement): void {
         <line class="electron-flow ${Math.abs(res.i3Ma) < 0.2 ? 'is-stopped' : ''}" style="--flow-speed:${Math.max(0.35, 16 / Math.max(2, Math.abs(res.i3Ma))).toFixed(2)}s"
           x1="240" y1="${res.i3Ma >= 0 ? 46 : 174}" x2="240" y2="${res.i3Ma >= 0 ? 174 : 46}" stroke="#34d399" stroke-width="3.2"/>
 
-        <!-- Fuente V1 (izq) -->
-        <rect x="22" y="88" width="60" height="50" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="2.2"/>
-        <text x="52" y="109" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="10" font-weight="bold">V₁ (+)</text>
-        <text x="52" y="126" text-anchor="middle" fill="#fff" font-family="monospace" font-size="13" font-weight="bold">${msV1.toFixed(1)} V</text>
+        <!-- Símbolo Fuente V1 (izq) y V2 (der) -->
+        ${svgBatteryVert(52, 110, 'V₁', `${msV1.toFixed(1)} V`, false, '#38bdf8')}
+        ${svgBatteryVert(428, 110, 'V₂', `${msV2.toFixed(1)} V`, msV2Inv, '#fbbf24')}
 
-        <!-- Fuente V2 (der) -->
-        <rect x="398" y="88" width="60" height="50" rx="8" fill="#0f172a" stroke="${msV2Inv ? '#ef4444' : '#fbbf24'}" stroke-width="2.2"/>
-        <text x="428" y="109" text-anchor="middle" fill="${msV2Inv ? '#fca5a5' : '#fde047'}" font-family="monospace" font-size="10" font-weight="bold">V₂ (${msV2Inv ? '−' : '+'})</text>
-        <text x="428" y="126" text-anchor="middle" fill="#fff" font-family="monospace" font-size="13" font-weight="bold">${msV2.toFixed(1)} V</text>
-
-        <!-- Nodo A -->
-        <circle cx="240" cy="46" r="6" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
+        <!-- Nodos A y GND -->
+        <circle cx="240" cy="46" r="5.5" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
+        <circle cx="240" cy="174" r="4.5" fill="#facc15" />
+        ${svgGnd(146, 174)}
         <text x="240" y="28" text-anchor="middle" fill="#facc15" font-family="monospace" font-size="10.5" font-weight="bold">Nodo A = ${res.vA.toFixed(2)} V · GND = 0 V</text>
 
         ${svgResistorHoriz(146, 46, 'R₁', msR1)}

@@ -8,6 +8,7 @@ import { hydrateIcons, setSlotIcon } from './core/icons';
 import { lofi } from './core/lofi';
 import { runPreloaderFinish } from './core/preloader';
 import { mountCircuitsLab } from './education/circuits-lab';
+import { mountCapacitorCanvas, type CapacitorAnimHandle } from './education/capacitor-anim';
 import {
   TAG_PALETTE,
   findPinoutRowById,
@@ -1155,9 +1156,9 @@ function mountModDiagramas(): void {
       label: 'Condensador',
       title: 'Condensador / Capacitor (Almacén rápido de energía)',
       pins: 'No polarizado (cerámico) o Polarizado (+ / −, electrolítico)',
-      theory: 'Dos placas paralelas separadas por un aislante. Almacena energía en un campo eléctrico y suaviza caídas bruscas de voltaje como un pequeño estanque auxiliar.',
+      theory: 'Dos placas paralelas separadas por un aislante. Al conectarlo a una pila, los electrones salen de la placa izquierda (+), pasan por la pila y se acumulan en la placa derecha (−) hasta igualar el voltaje.',
       arduinoTip: 'Un condensador electrolítico de 100 µF cerca del servo evita que el Arduino se reinicie cuando el motor arranca.',
-      actionLabel: 'Cargar / Descargar capacitor',
+      actionLabel: 'Conectar pila / Descargar',
       theorySvg: `
         <svg viewBox="0 0 260 110">
           <line x1="40" y1="55" x2="112" y2="55" stroke="#151515" stroke-width="3"/>
@@ -1167,22 +1168,10 @@ function mountModDiagramas(): void {
           <text x="120" y="102" text-anchor="middle" fill="#151515" font-family="monospace" font-size="11">Placas separadas (C)</text>
         </svg>`,
       renderAnim: (alt) => ({
-        svg: `
-          <svg viewBox="0 0 380 180">
-            <rect x="64" y="42" width="252" height="96" rx="14" fill="none" stroke="#334155" stroke-width="6"/>
-            <rect x="166" y="18" width="48" height="48" fill="#181818"/>
-            <line x1="176" y1="20" x2="176" y2="66" stroke="${alt ? '#22c55e' : '#94a3b8'}" stroke-width="5"/>
-            <line x1="204" y1="20" x2="204" y2="66" stroke="${alt ? '#38bdf8' : '#94a3b8'}" stroke-width="5"/>
-            ${alt ? '<text x="162" y="34" fill="#fca5a5" font-family="monospace" font-size="14" font-weight="bold">+</text><text x="210" y="34" fill="#7dd3fc" font-family="monospace" font-size="14" font-weight="bold">−</text>' : ''}
-            <rect x="115" y="104" width="150" height="16" rx="8" fill="#1e293b" stroke="#475569"/>
-            <rect x="117" y="106" width="${alt ? '146' : '16'}" height="12" rx="6" fill="${alt ? '#22c55e' : '#64748b'}"/>
-            <text x="190" y="92" text-anchor="middle" fill="#fff" font-family="monospace" font-size="12" font-weight="bold">
-              ${alt ? 'CARGADO: 5.0 V almacenados entre placas' : 'DESCARGADO: 0.0 V en espera'}
-            </text>
-          </svg>`,
+        svg: '<div id="diag-cap-stage"></div>',
         status: alt
-          ? 'Las cargas (+) y (−) se acumulan en placas opuestas manteniendo 5.0 V disponibles al instante.'
-          : 'Sin voltaje aplicado las placas están neutras (0.0 V).',
+          ? 'Pila de 5 V conectada: los electrones (e⁻) salen de la placa (+), pasan por la pila y cargan lentamente la placa (−) hasta equilibrar 5.0 V.'
+          : 'Pila desconectada: el capacitor descarga sus electrones retenidos retornando ambas placas a 0.0 V neutral.',
       }),
     },
     {
@@ -1266,6 +1255,7 @@ function mountModDiagramas(): void {
   let activeId: SymId = 'fuente';
   let altMode = false;
   let potPct = 50;
+  let capAnimHandle: CapacitorAnimHandle | null = null;
 
   // Estado del laboratorio completo
   let labSwitchClosed = true;
@@ -1362,6 +1352,8 @@ function mountModDiagramas(): void {
   `;
 
   const renderSym = () => {
+    capAnimHandle?.destroy();
+    capAnimHandle = null;
     const def = SYMBOLS.find((s) => s.id === activeId) ?? SYMBOLS[0];
     const tCard = document.getElementById('diag-theory-card')!;
     const aCard = document.getElementById('diag-anim-card')!;
@@ -1379,13 +1371,19 @@ function mountModDiagramas(): void {
     `;
 
     const anim = def.renderAnim(altMode, potPct);
+    const actionTxt =
+      def.id === 'cap'
+        ? altMode
+          ? 'Desconectar y descargar'
+          : 'Conectar pila 5 V (Cargar)'
+        : def.actionLabel;
     aCard.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <h3>Comportamiento animado</h3>
         ${
           def.id === 'pot'
             ? `<span style="font-family:var(--mono);font-size:.78rem;color:var(--accent-ink);font-weight:700">${potPct}%</span>`
-            : `<button type="button" class="seg-btn is-active" id="diag-anim-action">${def.actionLabel}</button>`
+            : `<button type="button" class="seg-btn is-active" id="diag-anim-action">${actionTxt}</button>`
         }
       </div>
       ${
@@ -1394,11 +1392,28 @@ function mountModDiagramas(): void {
           : ''
       }
       <div class="svg-stage">${anim.svg}</div>
-      <div class="status-banner is-ok">${anim.status}</div>
+      <div class="status-banner is-ok" id="diag-sym-status">${anim.status}</div>
     `;
 
-    document.getElementById('diag-anim-action')?.addEventListener('click', () => {
+    if (def.id === 'cap') {
+      const capHost = document.getElementById('diag-cap-stage');
+      if (capHost) {
+        capAnimHandle = mountCapacitorCanvas(capHost, altMode);
+      }
+    }
+
+    document.getElementById('diag-anim-action')?.addEventListener('click', (e) => {
       altMode = !altMode;
+      if (def.id === 'cap' && capAnimHandle) {
+        capAnimHandle.setCharging(altMode);
+        (e.currentTarget as HTMLButtonElement).textContent = altMode
+          ? 'Desconectar y descargar'
+          : 'Conectar pila 5 V (Cargar)';
+        const nextAnim = def.renderAnim(altMode, potPct);
+        const st = document.getElementById('diag-sym-status');
+        if (st) st.textContent = nextAnim.status;
+        return;
+      }
       renderSym();
     });
     document.getElementById('diag-pot-slider')?.addEventListener('input', (e) => {
