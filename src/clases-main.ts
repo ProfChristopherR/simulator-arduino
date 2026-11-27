@@ -11,6 +11,7 @@ import { mountCircuitsLab } from './education/circuits-lab';
 import { mountCapacitorCanvas, type CapacitorAnimHandle } from './education/capacitor-anim';
 import {
   TAG_PALETTE,
+  describePinTag,
   findPinoutRowById,
   renderPinoutPosterSvg,
   type PinoutBoardTab,
@@ -1812,8 +1813,9 @@ function mountModPinouts(): void {
       </div>
     </div>
 
-    <div class="pinout-sheet">
+    <div class="pinout-sheet" id="po-sheet">
       <div class="pinout-scroll-wrap" id="po-svg-host"></div>
+      <div class="po-popover" id="po-tag-popover" role="dialog" aria-live="polite" hidden></div>
     </div>
 
     <div class="pinout-inspector-bar" id="po-inspector">
@@ -1845,7 +1847,86 @@ function mountModPinouts(): void {
       .join('');
   };
 
+  const sheetEl = document.getElementById('po-sheet')!;
+  const popoverEl = document.getElementById('po-tag-popover')!;
+
+  const closePopover = () => {
+    sheetEl.querySelectorAll('.po-tag.is-popped').forEach((el) => el.classList.remove('is-popped'));
+    popoverEl.classList.remove('is-open');
+    popoverEl.hidden = true;
+  };
+
+  const selectRowVisual = (rowId: string) => {
+    const row = findPinoutRowById(rowId);
+    if (!row) return;
+    showPin(row);
+    sheetEl.querySelectorAll<SVGGElement>('[data-pin-row]').forEach((rEl) => {
+      rEl.classList.toggle('is-selected', rEl.dataset.pinRow === rowId);
+    });
+  };
+
+  const openTagPopover = (tagEl: SVGGElement) => {
+    const tagText = tagEl.dataset.tagText ?? '';
+    const tagKind = (tagEl.dataset.tagKind as TagKind) ?? 'arduino';
+    const pinRef = tagEl.dataset.pinRef;
+    const row = pinRef ? findPinoutRowById(pinRef) : undefined;
+    if (row) selectRowVisual(row.id);
+
+    sheetEl.querySelectorAll('.po-tag.is-popped').forEach((el) => el.classList.remove('is-popped'));
+    tagEl.classList.add('is-popped');
+
+    const info = describePinTag(tagText, tagKind, row);
+    const pal = TAG_PALETTE[info.kind];
+    popoverEl.innerHTML = `
+      <div class="po-pop-head">
+        <span class="poi-pill" style="background:${pal.fill};color:${pal.text};border-color:${pal.stroke ?? pal.fill}">${info.badgeText}</span>
+        <button type="button" class="po-pop-close" id="po-pop-close" aria-label="Cerrar detalle">×</button>
+      </div>
+      <h4 class="po-pop-title">${info.title}</h4>
+      <p class="po-pop-role">${info.role}</p>
+      <div class="po-pop-meta">
+        <div><span>Señales admitidas</span><strong>${info.signals}</strong></div>
+        <div><span>Nivel eléctrico</span><strong>${info.voltage}</strong></div>
+      </div>
+      <pre class="poi-code po-pop-code">${info.code}</pre>
+    `;
+
+    popoverEl.hidden = false;
+    popoverEl.classList.remove('is-open');
+
+    const sRect = sheetEl.getBoundingClientRect();
+    const tRect = tagEl.getBoundingClientRect();
+    const popW = Math.min(320, Math.max(220, sRect.width - 20));
+    popoverEl.style.width = `${popW}px`;
+    const popH = popoverEl.offsetHeight || 240;
+
+    // Ubicar al costado derecho o izquierdo del cuadrito, sin salirse de la lámina
+    const preferRight = tRect.left - sRect.left < sRect.width * 0.56;
+    let left = preferRight
+      ? tRect.right - sRect.left + 14
+      : tRect.left - sRect.left - popW - 14;
+    if (left < 10 || left + popW > sRect.width - 10) {
+      left = Math.max(10, Math.min(sRect.width - popW - 10, tRect.left - sRect.left + tRect.width / 2 - popW / 2));
+    }
+    let top = tRect.top - sRect.top + tRect.height / 2 - popH / 2;
+    top = Math.max(10, Math.min(sRect.height - popH - 10, top));
+
+    popoverEl.style.left = `${Math.round(left)}px`;
+    popoverEl.style.top = `${Math.round(top)}px`;
+
+    requestAnimationFrame(() => popoverEl.classList.add('is-open'));
+    document.getElementById('po-pop-close')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      closePopover();
+    });
+  };
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !popoverEl.hidden) closePopover();
+  });
+
   const renderPoster = () => {
+    closePopover();
     const host = document.getElementById('po-svg-host')!;
     const { svgHtml, defaultPin } = renderPinoutPosterSvg(activeBoard, selectedPinId, activeFilter);
     host.innerHTML = svgHtml;
@@ -1853,21 +1934,32 @@ function mountModPinouts(): void {
     const currentRow = findPinoutRowById(selectedPinId) ?? defaultPin;
     showPin(currentRow);
 
-    host.querySelectorAll<SVGGElement>('[data-pin-row]').forEach((el) => {
-      const selectThisPin = () => {
-        const id = el.dataset.pinRow;
-        if (!id) return;
-        const found = findPinoutRowById(id);
-        if (!found) return;
-        selectedPinId = found.id;
-        renderPoster();
+    const svgEl = host.querySelector('svg');
+    svgEl?.addEventListener('click', (e) => {
+      const target = e.target as Element | null;
+      if (!target?.closest('.po-tag') && !target?.closest('[data-pin-row]')) {
+        closePopover();
+      }
+    });
+
+    host.querySelectorAll<SVGGElement>('.po-tag').forEach((tagEl) => {
+      const handleTag = (e: Event) => {
+        e.stopPropagation();
+        openTagPopover(tagEl);
       };
-      el.addEventListener('click', selectThisPin);
-      el.addEventListener('keydown', (e) => {
+      tagEl.addEventListener('click', handleTag);
+      tagEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          selectThisPin();
+          handleTag(e);
         }
+      });
+    });
+
+    host.querySelectorAll<SVGGElement>('[data-pin-row]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.pinRow;
+        if (id) selectRowVisual(id);
       });
     });
 

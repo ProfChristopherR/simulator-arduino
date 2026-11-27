@@ -157,7 +157,7 @@ class LofiPlayer {
       const safeIdx = ((Number(saved.trackIndex) || 0) % LOFI_TRACKS.length + LOFI_TRACKS.length) % LOFI_TRACKS.length;
       this.trackIndex = safeIdx;
       const track = LOFI_TRACKS[safeIdx];
-      el.src = `./music/${encodeURIComponent(track.file)}`;
+      el.src = this.trackUrl(track.file);
       this.loadedTrackIndex = safeIdx;
 
       const elapsedSec = saved.playing ? Math.max(0, ageMs / 1000) : 0;
@@ -183,6 +183,11 @@ class LofiPlayer {
         this.emit();
       }
     } catch {}
+  }
+
+  private trackUrl(file: string): string {
+    const base = typeof location !== 'undefined' && /\/clases(\/|$)/.test(location.pathname) ? '../music/' : './music/';
+    return `${base}${encodeURIComponent(file)}`;
   }
 
   private pickRandomTrack(): number {
@@ -216,7 +221,7 @@ class LofiPlayer {
         : this.pickRandomTrack();
 
     const track = LOFI_TRACKS[this.trackIndex];
-    const url = `./music/${encodeURIComponent(track.file)}`;
+    const url = this.trackUrl(track.file);
     if (this.loadedTrackIndex !== this.trackIndex) {
       el.src = url;
       this.loadedTrackIndex = this.trackIndex;

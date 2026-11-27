@@ -993,6 +993,7 @@
  * Pinouts Poster Estilo Referencia Vertical
  * ========================================================================= */
 .pinout-sheet {
+  position: relative;
   background: var(--paper-hi);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -1019,12 +1020,144 @@
   transition: opacity 160ms ease;
 }
 
-.po-row:hover .po-tag rect {
-  filter: brightness(0.95);
+.po-sel-rect {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.po-row.is-selected .po-sel-rect {
+  opacity: 1;
+}
+
+.po-row.is-selected .po-leader {
+  stroke: #00786f;
+  stroke-width: 2.2;
+}
+
+.po-row.is-selected .po-pad-dot {
+  fill: #00c2b5;
+  r: 5;
 }
 
 .po-row.is-dimmed {
   opacity: 0.2;
+}
+
+.po-tag {
+  transform-box: fill-box;
+  transform-origin: center;
+  cursor: pointer;
+  transition: transform 240ms cubic-bezier(0.22, 1.45, 0.36, 1), filter 180ms ease;
+}
+
+.po-tag:hover {
+  transform: scale(1.12);
+  filter: drop-shadow(0 3px 6px rgba(21, 21, 21, 0.24));
+}
+
+.po-tag.is-popped {
+  transform: scale(1.28);
+  filter: drop-shadow(0 6px 14px rgba(0, 194, 181, 0.48));
+}
+
+/* Popover animado al hacer clic en cualquier cuadrito de pin */
+.po-popover {
+  position: absolute;
+  z-index: 18;
+  background: rgba(250, 246, 236, 0.96);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1.5px solid #00c2b5;
+  border-radius: 14px;
+  padding: 13px 14px;
+  box-shadow: 0 22px 44px -14px rgba(21, 21, 21, 0.42);
+  display: grid;
+  gap: 8px;
+  transform-origin: center;
+  opacity: 0;
+  transform: scale(0.84) translateY(8px);
+  transition: opacity 180ms ease, transform 280ms cubic-bezier(0.22, 1.36, 0.36, 1);
+}
+
+.po-popover.is-open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.po-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.po-pop-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--navy);
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.po-pop-close:hover {
+  background: var(--navy);
+  color: var(--paper);
+}
+
+.po-pop-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 0.98rem;
+  color: var(--navy);
+  line-height: 1.25;
+}
+
+.po-pop-role {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.44;
+  color: var(--ink-2);
+}
+
+.po-pop-meta {
+  display: grid;
+  gap: 5px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 0.74rem;
+}
+
+.po-pop-meta div {
+  display: grid;
+  gap: 1px;
+}
+
+.po-pop-meta span {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.po-pop-meta strong {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.po-pop-code {
+  margin: 0;
+  font-size: 0.7rem;
+  padding: 7px 9px;
 }
 
 .pinout-inspector-bar {

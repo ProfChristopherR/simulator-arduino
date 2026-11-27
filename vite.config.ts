@@ -9,7 +9,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        clases: fileURLToPath(new URL('./clases.html', import.meta.url)),
+        clases: fileURLToPath(new URL('./clases/index.html', import.meta.url)),
       },
     },
   },

@@ -31,17 +31,267 @@ export const TAG_PALETTE: Record<
   nc: { label: 'NC / Solo entrada', fill: '#df4b37', text: '#ffffff' },
 };
 
+export interface PinTagDetail {
+  badgeText: string;
+  kind: TagKind;
+  title: string;
+  role: string;
+  signals: string;
+  voltage: string;
+  code: string;
+}
+
+export function describePinTag(
+  tagText: string,
+  tagKind: TagKind,
+  row?: PinoutRowSpec
+): PinTagDetail {
+  const t = tagText.trim().toUpperCase();
+  const voltage = row?.voltage ?? '5 V / 3.3 V';
+  const fallbackCode = row?.codeExample ?? `// Pin ${tagText}`;
+
+  // 1. Registros del microcontrolador ATmega328P (PBx, PCx, PDx)
+  const avrMatch = /^P([BCD])([0-7])$/.exec(t);
+  if (avrMatch) {
+    const [, port, bit] = avrMatch;
+    const arduinoMap: Record<string, string> = {
+      PB0: 'D8', PB1: 'D9', PB2: 'D10', PB3: 'D11', PB4: 'D12', PB5: 'D13',
+      PC0: 'A0', PC1: 'A1', PC2: 'A2', PC3: 'A3', PC4: 'A4', PC5: 'A5', PC6: 'RESET',
+      PD0: 'D0', PD1: 'D1', PD2: 'D2', PD3: 'D3', PD4: 'D4', PD5: 'D5', PD6: 'D6', PD7: 'D7',
+    };
+    const equiv = arduinoMap[t] ?? row?.title ?? t;
+    const extraSignals = [
+      'E/S Digital TTL (0 / 5 V)',
+      port === 'C' && Number(bit) <= 5 ? 'Entrada Analógica ADC (0–5 V)' : '',
+      ['PB1', 'PB2', 'PB3', 'PD3', 'PD5', 'PD6'].includes(t) ? 'Salida PWM (~)' : '',
+      ['PD2', 'PD3'].includes(t) ? 'Interrupción Externa' : '',
+      'PCINT (Interrupción por cambio)',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: `${tagText} · Registro Puerto ${port}, Bit ${bit} (${equiv})`,
+      role: `Identificador interno del chip ATmega328P en el registro DDR${port}/PORT${port}/PIN${port} (bit ${bit}). Equivale al pin ${equiv} en Arduino y permite manipular el estado en nanosegundos sin esperar a digitalWrite().`,
+      signals: extraSignals,
+      voltage: port === 'C' && bit === '6' ? '5 V (Reset activo BAJO)' : '0–5 V (máx. 40 mA)',
+      code:
+        t === 'PC6'
+          ? '// PC6 actúa como RESET externo por hardware'
+          : `// Acceso rápido por registro al pin ${equiv} (${t}):\nDDR${port} |= (1 << ${bit});   // Configurar como OUTPUT\nPORT${port} ^= (1 << ${bit});  // Conmutar HIGH / LOW`,
+    };
+  }
+
+  // 2. PWM (~)
+  if (t === 'PWM') {
+    return {
+      badgeText: 'PWM ~',
+      kind: 'pwm',
+      title: `${row?.title ?? 'Pin PWM'} · Modulación por Ancho de Pulso`,
+      role: 'Conmuta rápidamente entre 0 V y Vcc variando el ciclo de trabajo (0–100%) para regular el brillo de un LED, la velocidad de un motor (vía transistor/puente H) o el ángulo de un servomotor.',
+      signals: 'Onda cuadrada digital PWM (~490/980 Hz en Uno · configurable en ESP32)',
+      voltage,
+      code: fallbackCode.includes('analogWrite') || fallbackCode.includes('Servo')
+        ? fallbackCode
+        : 'analogWrite(pin, 128); // 50% ciclo de trabajo',
+    };
+  }
+
+  // 3. Comunicación (I²C, SPI, UART)
+  if (tagKind === 'comm' || ['SDA', 'SCL', 'MOSI', 'MISO', 'SCK', 'SS', 'TX', 'RX', 'TX0', 'RX0', 'TX2', 'RX2'].includes(t)) {
+    const commMap: Record<string, { title: string; role: string; signals: string; code: string }> = {
+      SDA: {
+        title: 'SDA · Datos del bus I²C',
+        role: 'Línea bidireccional de datos del protocolo I²C. Permite conectar múltiples pantallas OLED/LCD y sensores (BME280, MPU6050, RTC) usando solo 2 cables junto a SCL.',
+        signals: 'Bus digital I²C síncrono (open-drain con pull-up, 100–400 kHz)',
+        code: '#include <Wire.h>\nWire.begin(); // Inicia bus I²C',
+      },
+      SCL: {
+        title: 'SCL · Reloj del bus I²C',
+        role: 'Envía los pulsos de reloj para sincronizar todos los dispositivos esclavos conectados en SDA.',
+        signals: 'Señal de reloj digital I²C (100 kHz estándar / 400 kHz rápido)',
+        code: '#include <Wire.h>\nWire.begin(); // Sincroniza reloj I²C',
+      },
+      MOSI: {
+        title: 'MOSI · Datos Maestro → Esclavo (SPI)',
+        role: 'Master Out Slave In: transmite datos a alta velocidad desde la placa hacia pantallas TFT, lectores RFID RC522 o tarjetas microSD.',
+        signals: 'Bus digital SPI síncrono de alta velocidad (MHz)',
+        code: '#include <SPI.h>\nSPI.begin();',
+      },
+      MISO: {
+        title: 'MISO · Datos Esclavo → Maestro (SPI)',
+        role: 'Master In Slave Out: recibe la respuesta digital desde sensores SPI, tarjetas SD o etiquetas RFID hacia el microcontrolador.',
+        signals: 'Entrada digital síncrona SPI',
+        code: '#include <SPI.h>\nbyte dato = SPI.transfer(0x00);',
+      },
+      SCK: {
+        title: 'SCK · Reloj del bus SPI',
+        role: 'Genera la señal de reloj maestra para coordinar cada bit entre MOSI y MISO en dispositivos SPI.',
+        signals: 'Salida de reloj digital SPI de alta frecuencia',
+        code: '#include <SPI.h>\nSPI.begin();',
+      },
+      SS: {
+        title: 'SS / CS · Selección de Esclavo (SPI)',
+        role: 'Slave Select / Chip Select: se pone en LOW para elegir con qué dispositivo SPI específico se está hablando cuando hay varios conectados.',
+        signals: 'Salida digital de control activo en BAJO (LOW)',
+        code: 'digitalWrite(SS, LOW);  // Seleccionar módulo SPI',
+      },
+    };
+    const matched = commMap[t];
+    if (matched) {
+      return { badgeText: tagText, kind: tagKind, ...matched, voltage };
+    }
+    if (t.startsWith('TX') || t.startsWith('RX')) {
+      return {
+        badgeText: tagText,
+        kind: tagKind,
+        title: `${tagText} · Puerto Serie UART (${t.startsWith('TX') ? 'Transmisión' : 'Recepción'})`,
+        role: t.startsWith('TX')
+          ? 'Envía tramas serie asíncronas bit a bit (ASCII/binario) hacia el monitor serial USB o hacia módulos GPS, Bluetooth HC-05 o sensor de CO₂.'
+          : 'Recibe datos serie asíncronos desde el computador o desde periféricos UART.',
+        signals: 'Señal serie UART TTL asíncrona (ej. 9600 o 115200 baudios)',
+        voltage,
+        code: fallbackCode,
+      };
+    }
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: `${tagText} · Bus de comunicación digital`,
+      role: row?.description ?? 'Terminal dedicado a buses de comunicación periférica de alta velocidad.',
+      signals: 'Señal digital síncrona SPI / UART',
+      voltage,
+      code: fallbackCode,
+    };
+  }
+
+  // 4. ADC / Analógico y DAC
+  if (tagKind === 'adc' || t.startsWith('ADC') || /^A\d$/.test(t)) {
+    const isEspAdc2 = t.startsWith('ADC2');
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: `${tagText} · Entrada Analógica (ADC)`,
+      role: isEspAdc2
+        ? 'Canal ADC2 de 12 bits (0–4095) en ESP32. Atención: mientras el Wi-Fi está encendido los pines ADC2 quedan bloqueados; usa ADC1 (GPIO32–39) si empleas Wi-Fi.'
+        : 'Convierte un voltaje analógico continuo (potenciómetro, LDR, sensor de humedad/gas) en un número entero mediante el conversor ADC interno.',
+      signals: t.startsWith('ADC')
+        ? 'Voltaje analógico continuo 0–3.3 V (resolución 12 bits: 0–4095)'
+        : 'Voltaje analógico 0–5 V (resolución 10 bits: 0–1023) o E/S digital',
+      voltage,
+      code: fallbackCode,
+    };
+  }
+
+  if (t === 'DAC1' || t === 'DAC2') {
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: `${tagText} · Conversor Digital a Analógico Real`,
+      role: 'A diferencia del PWM, genera un voltaje continuo real y suave entre 0 V y 3.3 V (resolución 8 bits: 0–255), útil para audio o control analógico fino.',
+      signals: 'Salida analógica continua pura (0.0 V – 3.3 V)',
+      voltage: '0–3.3 V analógico real',
+      code: fallbackCode,
+    };
+  }
+
+  // 5. Interrupción / Touch
+  if (tagKind === 'int') {
+    const isTouch = t.startsWith('TOUCH');
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: isTouch
+        ? `${tagText} · Sensor Táctil Capacitivo`
+        : `${tagText} · Interrupción Externa por Hardware`,
+      role: isTouch
+        ? 'Detecta cambios de capacitancia al tocar un cable o lámina metálica con el dedo, sin necesidad de botones mecánicos.'
+        : 'Detiene instantáneamente lo que esté ejecutando loop() apenas detecta un flanco (RISING / FALLING) en el pin, sin perder pulsos rápidos ni encoders.',
+      signals: isTouch ? 'Variación capacitiva al tacto humano' : 'Flanco digital rápido (CHANGE / RISING / FALLING)',
+      voltage,
+      code: fallbackCode,
+    };
+  }
+
+  // 6. Power / Especiales (NC, INPUT, BOOT!, LED)
+  if (tagKind === 'nc') {
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: t === 'INPUT' ? 'INPUT ONLY · Pin de Solo Entrada' : 'NC · Sin Conexión (Not Connected)',
+      role:
+        t === 'INPUT'
+          ? 'Los pines GPIO34, 35, 36 y 39 del ESP32 solo tienen circuitería de lectura. No poseen transistores de salida ni resistencias pull-up/pull-down internas.'
+          : 'Pin reservado físicamente en el encabezado Arduino R3 sin pista conectada al microcontrolador.',
+      signals: t === 'INPUT' ? 'Solo lectura digital o analógica ADC1 (0–3.3 V máx)' : 'Ninguna señal admitida',
+      voltage,
+      code: fallbackCode,
+    };
+  }
+
+  if (t === 'BOOT!') {
+    return {
+      badgeText: tagText,
+      kind: tagKind,
+      title: `${tagText} · Pin Strapping de Arranque`,
+      role: 'El ESP32 lee el estado eléctrico de este pin en el instante de encendido para decidir su modo de boot. Evita forzarlo en contra de su estado de fábrica al encender.',
+      signals: 'E/S Digital 3.3 V + PWM (cuidado en el instante de reset/boot)',
+      voltage,
+      code: fallbackCode,
+    };
+  }
+
+  if (t === 'LED') {
+    return {
+      badgeText: 'LED',
+      kind: tagKind,
+      title: 'LED Azul Integrado en Placa (GPIO2)',
+      role: 'Conecta directamente al pequeño LED azul SMD de la placa ESP32 DevKit V1 para comprobar sketches rápidamente.',
+      signals: 'Salida digital 3.3 V / PWM',
+      voltage,
+      code: fallbackCode,
+    };
+  }
+
+  // 7. Pines Arduino / GPIO / Power generales -> ficha completa del pin
+  const caps: string[] = [];
+  if (row?.tags.some((x) => x.kind === 'arduino')) caps.push('Entrada/Salida Digital');
+  if (row?.tags.some((x) => x.kind === 'pwm')) caps.push('PWM (~)');
+  if (row?.tags.some((x) => x.kind === 'adc')) caps.push('Lectura Analógica (ADC)');
+  if (row?.tags.some((x) => x.kind === 'comm')) caps.push('Bus Comunicación');
+  if (row?.tags.some((x) => x.kind === 'int')) caps.push(row.id.startsWith('esp') ? 'Sensor Touch' : 'Interrupción Externa');
+  if (row?.tags.some((x) => x.kind === 'power')) {
+    caps.push(t === 'GND' ? 'Referencia 0 V común' : 'Línea de alimentación DC');
+  }
+
+  return {
+    badgeText: tagText,
+    kind: tagKind,
+    title: row?.title ?? tagText,
+    role: row?.description ?? 'Terminal eléctrico del microcontrolador.',
+    signals: caps.length > 0 ? caps.join(' · ') : 'Digital / Control',
+    voltage,
+    code: fallbackCode,
+  };
+}
+
 function pillWidth(text: string): number {
   return Math.max(36, Math.round(text.length * 7.6 + 15));
 }
 
-function renderTagPill(tag: PinTag, x: number, yCenter: number): { svg: string; w: number } {
+function renderTagPill(
+  tag: PinTag,
+  x: number,
+  yCenter: number,
+  pinId?: string
+): { svg: string; w: number } {
   const pal = TAG_PALETTE[tag.kind];
   const w = pillWidth(tag.text);
   const h = 19;
   const stroke = pal.stroke ?? pal.fill;
   const svg = `
-    <g class="po-tag" data-tag-kind="${tag.kind}">
+    <g class="po-tag" data-tag-kind="${tag.kind}" data-tag-text="${tag.text}"${pinId ? ` data-pin-ref="${pinId}"` : ''} tabindex="0" role="button" aria-label="Ver detalle de ${tag.text}">
       <rect x="${x}" y="${yCenter - h / 2}" width="${w}" height="${h}" rx="3.5" fill="${pal.fill}" stroke="${stroke}" stroke-width="1.2" />
       <text x="${x + w / 2}" y="${yCenter + 3.6}" text-anchor="middle" fill="${pal.text}" font-family="'JetBrains Mono', monospace" font-size="10.2" font-weight="700">${tag.text}</text>
     </g>
@@ -78,7 +328,7 @@ function renderPinRowSvg(opts: {
   if (side === 'right') {
     let cx = lineEndX + 4;
     for (const t of row.tags) {
-      const { svg, w } = renderTagPill(t, cx, ry);
+      const { svg, w } = renderTagPill(t, cx, ry, row.id);
       pillsSvg += svg;
       cx += w + gap;
     }
@@ -87,7 +337,7 @@ function renderPinRowSvg(opts: {
     let cx = lineEndX - 4;
     for (const t of row.tags) {
       const w = pillWidth(t.text);
-      const { svg } = renderTagPill(t, cx - w, ry);
+      const { svg } = renderTagPill(t, cx - w, ry, row.id);
       pillsSvg += svg;
       cx -= w + gap;
     }
@@ -99,17 +349,13 @@ function renderPinRowSvg(opts: {
       ? `M${padX},${padY} L${lineEndX},${ry}`
       : `M${padX},${padY} L${side === 'left' ? padX - 18 : padX + 18},${padY} L${lineEndX},${ry}`;
 
-  const selHighlight = isSel
-    ? `<rect x="${minX - 4}" y="${ry - 12.5}" width="${maxX - minX + 8}" height="25" rx="6" fill="rgba(0,194,181,0.16)" stroke="#00c2b5" stroke-width="2" />`
-    : '';
-
-  const padDotColor = isSel ? '#00c2b5' : TAG_PALETTE[row.tags[0]?.kind ?? 'arduino'].fill;
+  const selBox = `<rect class="po-sel-rect" x="${minX - 4}" y="${ry - 12.5}" width="${maxX - minX + 8}" height="25" rx="6" fill="rgba(0,194,181,0.16)" stroke="#00c2b5" stroke-width="2" />`;
 
   return `
-    <g class="po-row ${isSel ? 'is-selected' : ''} ${match ? '' : 'is-dimmed'}" data-pin-row="${row.id}" tabindex="0" role="button" aria-label="${row.title}">
-      ${selHighlight}
-      <path d="${leaderPath}" fill="none" stroke="${isSel ? '#00786f' : '#475569'}" stroke-width="${isSel ? 2.2 : 1.3}" />
-      <circle cx="${padX}" cy="${padY}" r="${isSel ? 5 : 3.5}" fill="${padDotColor}" stroke="#0f172a" stroke-width="1.2" />
+    <g class="po-row ${isSel ? 'is-selected' : ''} ${match ? '' : 'is-dimmed'}" data-pin-row="${row.id}" aria-label="${row.title}">
+      ${selBox}
+      <path class="po-leader" d="${leaderPath}" fill="none" stroke="${isSel ? '#00786f' : '#475569'}" stroke-width="1.3" />
+      <circle class="po-pad-dot" cx="${padX}" cy="${padY}" r="3.8" fill="${TAG_PALETTE[row.tags[0]?.kind ?? 'arduino'].fill}" stroke="#0f172a" stroke-width="1.2" />
       ${pillsSvg}
     </g>
   `;
@@ -1095,10 +1341,10 @@ function renderArduinoUnoPoster(selectedId: string, activeFilter: 'all' | TagKin
         <circle cx="954" cy="108" r="4" fill="#e6b834" />
         <circle cx="936" cy="122" r="4" fill="#e6b834" />
         <circle cx="954" cy="122" r="4" fill="#e6b834" />
-        ${renderTagPill({ text: 'GND', kind: 'power' }, 856, 86).svg}
-        ${renderTagPill({ text: '5V', kind: 'power' }, 856, 126).svg}
-        ${renderTagPill({ text: 'D10', kind: 'arduino' }, 996, 86).svg}
-        ${renderTagPill({ text: 'D11', kind: 'arduino' }, 996, 126).svg}
+        ${renderTagPill({ text: 'GND', kind: 'power' }, 856, 86, 'uno_gnd1').svg}
+        ${renderTagPill({ text: '5V', kind: 'power' }, 856, 126, 'uno_5v').svg}
+        ${renderTagPill({ text: 'D10', kind: 'arduino' }, 996, 86, 'uno_d10').svg}
+        ${renderTagPill({ text: 'D11', kind: 'arduino' }, 996, 126, 'uno_d11').svg}
         <text x="945" y="168" text-anchor="middle" fill="#475569" font-family="'JetBrains Mono', monospace" font-size="9.5" font-weight="700">ICSP 16U2</text>
       </g>
 
@@ -1114,12 +1360,12 @@ function renderArduinoUnoPoster(selectedId: string, activeFilter: 'all' | TagKin
         <circle cx="560" cy="695" r="4" fill="#e6b834" />
         <circle cx="577" cy="695" r="4" fill="#e6b834" />
         <!-- Etiquetas del ICSP alrededor de la lupa -->
-        ${renderTagPill({ text: 'RESET', kind: 'power' }, 440, 666).svg}
-        ${renderTagPill({ text: 'GND', kind: 'power' }, 446, 706).svg}
-        ${renderTagPill({ text: 'MISO · D12', kind: 'comm' }, 614, 666).svg}
-        ${renderTagPill({ text: 'MOSI · D11', kind: 'comm' }, 614, 706).svg}
-        ${renderTagPill({ text: 'SCK · D13', kind: 'arduino' }, 520, 622).svg}
-        ${renderTagPill({ text: '5V', kind: 'power' }, 542, 746).svg}
+        ${renderTagPill({ text: 'RESET', kind: 'power' }, 440, 666, 'uno_rst').svg}
+        ${renderTagPill({ text: 'GND', kind: 'power' }, 446, 706, 'uno_gnd1').svg}
+        ${renderTagPill({ text: 'MISO', kind: 'comm' }, 614, 666, 'uno_d12').svg}
+        ${renderTagPill({ text: 'MOSI', kind: 'comm' }, 614, 706, 'uno_d11').svg}
+        ${renderTagPill({ text: 'SCK', kind: 'comm' }, 534, 622, 'uno_d13').svg}
+        ${renderTagPill({ text: '5V', kind: 'power' }, 542, 746, 'uno_5v').svg}
       </g>
 
       ${renderLegendBlock(34, 594)}

@@ -3,12 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      if (location.pathname.endsWith('/index.html')) {
+        history.replaceState(null, '', location.pathname.slice(0, -10) + location.search + location.hash);
+      }
+    </script>
     <title>Clases Visuales de Electrónica y Arduino | Liceo Bicentenario San Nicolás</title>
     <meta
       name="description"
       content="Clases interactivas y animadas de electricidad básica, Ley de Ohm, circuitos serie y paralelo, protoboard, pinouts reales, pull-up/pull-down, PWM y programación Arduino C++."
     />
-    <link rel="icon" type="image/png" href="./logoliceo.png" />
+    <link rel="icon" type="image/png" href="../logoliceo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -156,7 +161,7 @@
           <path class="pl-arc-spin" d="M56 8 A48 48 0 0 1 104 56" fill="none" stroke="#00c2b5" stroke-width="3" stroke-linecap="round" />
           <circle class="pl-ring-complete" cx="56" cy="56" r="48" fill="none" stroke="#00c2b5" stroke-width="3" stroke-linecap="round" />
         </svg>
-        <img class="pl-logo" src="./logoliceo.png" alt="" width="50" height="50" />
+        <img class="pl-logo" src="../logoliceo.png" alt="" width="50" height="50" />
       </div>
       <div class="pl-copy">
         <div class="pl-title">Tecnología Geogo · LPSN</div>
@@ -167,9 +172,9 @@
 
     <header class="site-header is-glass-floating" id="clases-top">
       <div class="header-inner">
-        <a class="brand" href="./" aria-label="Volver al simulador principal">
+        <a class="brand" href="../" aria-label="Volver al simulador principal">
           <img
-            src="./logoliceo.png"
+            src="../logoliceo.png"
             alt="Escudo Liceo Bicentenario de Excelencia Polivalente San Nicolás"
             class="brand-logo"
             width="34"
@@ -219,7 +224,7 @@
               </button>
             </div>
           </div>
-          <a class="btn-back-sim" href="./#mesa-trabajo">
+          <a class="btn-back-sim" href="../#mesa-trabajo">
             ← Simulador 3D
           </a>
           <button
@@ -266,7 +271,7 @@
         <a class="gr-item" href="#mod-codigo" data-rail-section="mod-codigo"><span class="gr-num">09</span><span class="gr-label">Arduino C++</span></a>
       </nav>
       <div class="gr-sep"></div>
-      <a class="gr-item gr-cta" href="./#mesa-trabajo" title="Ir al Simulador 3D">
+      <a class="gr-item gr-cta" href="../#mesa-trabajo" title="Ir al Simulador 3D">
         <span class="gr-num">3D</span>
         <span class="gr-label">Abrir Simulador 3D</span>
       </a>
@@ -408,21 +413,21 @@
     <footer class="site-footer">
       <div class="footer-inner">
         <div class="footer-brand">
-          <img src="./logoliceo.png" alt="Logo Liceo San Nicolás" width="32" height="32" />
+          <img src="../logoliceo.png" alt="Logo Liceo San Nicolás" width="32" height="32" />
           <div>
             <strong>Liceo Bicentenario de Excelencia Polivalente San Nicolás</strong>
             <span>Academia Visual de Electrónica · Área Premilitar · Tecnología Geogo</span>
           </div>
         </div>
         <div class="footer-links">
-          <a href="./">Visor 3D</a>
-          <a href="./#mesa-trabajo">Mesa de trabajo</a>
-          <a href="./#calculadora-resistencias">Calc. Resistencias</a>
-          <a href="./#comparar">Comparar placas</a>
+          <a href="../">Visor 3D</a>
+          <a href="../#mesa-trabajo">Mesa de trabajo</a>
+          <a href="../#calculadora-resistencias">Calc. Resistencias</a>
+          <a href="../#comparar">Comparar placas</a>
         </div>
       </div>
     </footer>
 
-    <script type="module" src="/src/clases-main.ts"></script>
+    <script type="module" src="../src/clases-main.ts"></script>
   </body>
 </html>
