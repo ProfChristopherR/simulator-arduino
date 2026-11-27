@@ -7,6 +7,7 @@ import { ESP32_SPEC } from './boards/esp32-devkit';
 import { hydrateIcons, setSlotIcon } from './core/icons';
 import { lofi } from './core/lofi';
 import { runPreloaderFinish } from './core/preloader';
+import { mountCircuitsLab } from './education/circuits-lab';
 import {
   TAG_PALETTE,
   findPinoutRowById,
@@ -930,8 +931,10 @@ function mountModDiagramas(): void {
               <rect class="electron-flow" style="--flow-speed:${alt ? '1.35s' : '0.85s'}" x="48" y="34" width="284" height="106" rx="14" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
               <g transform="translate(22,56)">
                 <rect x="0" y="0" width="54" height="62" rx="8" fill="#0f172a" stroke="${col}" stroke-width="2.5"/>
-                <line x1="18" y1="14" x2="18" y2="48" stroke="${col}" stroke-width="3.5"/>
-                <line x1="34" y1="22" x2="34" y2="40" stroke="#94a3b8" stroke-width="3.5"/>
+                <line x1="12" y1="22" x2="42" y2="22" stroke="${col}" stroke-width="4" stroke-linecap="round"/>
+                <line x1="19" y1="38" x2="35" y2="38" stroke="#cbd5e1" stroke-width="3.5" stroke-linecap="round"/>
+                <text x="10" y="16" fill="#fca5a5" font-family="monospace" font-size="11" font-weight="bold">+</text>
+                <text x="10" y="52" fill="#94a3b8" font-family="monospace" font-size="11" font-weight="bold">−</text>
                 <text x="27" y="-8" text-anchor="middle" fill="#fff" font-family="monospace" font-size="12" font-weight="bold">${v}</text>
               </g>
               <g transform="translate(304,68)">
@@ -995,12 +998,12 @@ function mountModDiagramas(): void {
       actionLabel: 'Invertir polaridad del diodo',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="40" y1="55" x2="106" y2="55" stroke="#151515" stroke-width="3"/>
-          <polygon points="106,33 106,77 148,55" fill="#151515"/>
-          <line x1="150" y1="31" x2="150" y2="79" stroke="#dc2626" stroke-width="5"/>
-          <line x1="150" y1="55" x2="218" y2="55" stroke="#151515" stroke-width="3"/>
-          <text x="64" y="42" fill="#151515" font-family="monospace" font-size="12" font-weight="bold">Ánodo (+)</text>
-          <text x="160" y="42" fill="#dc2626" font-family="monospace" font-size="12" font-weight="bold">Cátodo (−)</text>
+          <line x1="40" y1="58" x2="106" y2="58" stroke="#151515" stroke-width="3"/>
+          <polygon points="106,36 106,80 148,58" fill="#151515"/>
+          <line x1="150" y1="34" x2="150" y2="82" stroke="#dc2626" stroke-width="5"/>
+          <line x1="150" y1="58" x2="218" y2="58" stroke="#151515" stroke-width="3"/>
+          <text x="98" y="38" text-anchor="end" fill="#151515" font-family="monospace" font-size="11.5" font-weight="bold">Ánodo (+)</text>
+          <text x="160" y="38" text-anchor="start" fill="#dc2626" font-family="monospace" font-size="11.5" font-weight="bold">Cátodo (−)</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
@@ -1037,14 +1040,14 @@ function mountModDiagramas(): void {
       actionLabel: 'Invertir LED (+ / −)',
       theorySvg: `
         <svg viewBox="0 0 260 110">
-          <line x1="40" y1="62" x2="104" y2="62" stroke="#151515" stroke-width="3"/>
-          <polygon points="104,40 104,84 144,62" fill="#ef4444"/>
-          <line x1="146" y1="38" x2="146" y2="86" stroke="#151515" stroke-width="4.5"/>
-          <line x1="146" y1="62" x2="215" y2="62" stroke="#151515" stroke-width="3"/>
-          <path d="M126 32 L144 14 M140 14 L144 14 L144 18" stroke="#00c2b5" stroke-width="2.5" fill="none"/>
-          <path d="M142 36 L160 18 M156 18 L160 18 L160 22" stroke="#00c2b5" stroke-width="2.5" fill="none"/>
-          <text x="64" y="49" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">Ánodo +</text>
-          <text x="158" y="49" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">Cátodo −</text>
+          <line x1="40" y1="64" x2="104" y2="64" stroke="#151515" stroke-width="3"/>
+          <polygon points="104,42 104,86 144,64" fill="#ef4444"/>
+          <line x1="146" y1="40" x2="146" y2="88" stroke="#151515" stroke-width="4.5"/>
+          <line x1="146" y1="64" x2="215" y2="64" stroke="#151515" stroke-width="3"/>
+          <path d="M126 34 L144 16 M140 16 L144 16 L144 20" stroke="#00c2b5" stroke-width="2.5" fill="none"/>
+          <path d="M142 38 L160 20 M156 20 L160 20 L160 24" stroke="#00c2b5" stroke-width="2.5" fill="none"/>
+          <text x="96" y="46" text-anchor="end" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">Ánodo (+)</text>
+          <text x="160" y="52" text-anchor="start" fill="#151515" font-family="monospace" font-size="11" font-weight="bold">Cátodo (−)</text>
         </svg>`,
       renderAnim: (alt) => ({
         svg: `
@@ -1332,12 +1335,14 @@ function mountModDiagramas(): void {
             <text x="32" y="60" text-anchor="middle" fill="#7dd3fc" font-family="monospace" font-size="11" font-weight="bold">D1 (1N4007)</text>
           </g>
 
-          <!-- LED1 en rama inferior -->
+          <!-- LED1 en rama inferior (corriente fluye de derecha a izquierda hacia GND) -->
           <g class="diag-clickable" data-lab-part="led1" transform="translate(320, 160)">
             <rect x="0" y="0" width="90" height="54" rx="8" fill="#181818"/>
             <circle id="diag-lab-led-glow" cx="45" cy="27" r="24" fill="#ef4444" opacity="0.45"/>
-            <polygon points="24,14 24,40 50,27" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>
-            <line x1="52" y1="14" x2="52" y2="40" stroke="#fff" stroke-width="3.5"/>
+            <line x1="34" y1="14" x2="34" y2="40" stroke="#fff" stroke-width="3.5"/>
+            <polygon points="62,14 62,40 36,27" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>
+            <path d="M40 12 L28 2 M32 2 L28 2 L28 6" stroke="#fef08a" stroke-width="2" fill="none"/>
+            <path d="M49 11 L37 1 M41 1 L37 1 L37 5" stroke="#fef08a" stroke-width="2" fill="none"/>
             <text x="45" y="62" text-anchor="middle" fill="#fca5a5" font-family="monospace" font-size="11" font-weight="bold">LED1</text>
           </g>
 
@@ -1477,142 +1482,11 @@ function mountModDiagramas(): void {
 }
 
 /* =========================================================================
- * MÓDULO 4: Circuitos en Serie vs. Paralelo interactivos
+ * MÓDULO 4: Circuitos Serie, Paralelo, Mixtos y Múltiples Fuentes (Resistencias)
  * ========================================================================= */
 function mountModSerieParalelo(): void {
-  const root = document.getElementById('root-mod-serie-paralelo')!;
-  let seriesOpen = false;
-  let parallelBranch1Open = false;
-  let rVal = 220;
-
-  root.innerHTML = `
-    <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-family:var(--mono);font-size:.78rem;color:var(--navy);font-weight:700">Resistencias R₁ y R₂:</span>
-      ${[220, 470, 1000].map((v) => `<button type="button" class="seg-btn ${v === 220 ? 'is-active' : ''}" data-sp-r="${v}">${formatOhms(v)}</button>`).join('')}
-    </div>
-
-    <div class="sp-compare-grid">
-      <div class="viz-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <h3>Circuito en Serie (1 solo camino)</h3>
-          <button type="button" class="seg-btn" id="btn-sp-series">Desconectar LED 1</button>
-        </div>
-        <div class="svg-stage">
-          <svg viewBox="0 0 460 190" aria-label="Circuito animado en serie">
-            <rect x="45" y="42" width="370" height="122" rx="14" fill="none" stroke="#334155" stroke-width="8" />
-            <rect id="sp-ser-flow" class="electron-flow" x="45" y="42" width="370" height="122" rx="14"
-              fill="none" stroke="#38bdf8" stroke-width="4" />
-            <rect x="18" y="78" width="54" height="48" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2" />
-            <text x="45" y="107" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">5 V</text>
-
-            <g transform="translate(155, 22)">
-              <circle id="sp-ser-led1" cx="22" cy="20" r="18" fill="#ef4444" stroke="#fff" stroke-width="2" />
-              <text x="22" y="54" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">LED 1</text>
-            </g>
-            <g transform="translate(295, 22)">
-              <circle id="sp-ser-led2" cx="22" cy="20" r="18" fill="#ef4444" stroke="#fff" stroke-width="2" />
-              <text x="22" y="54" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">LED 2</text>
-            </g>
-          </svg>
-        </div>
-        <div class="math-eq-box is-light" id="sp-ser-eq"></div>
-        <div id="sp-ser-msg" class="status-banner is-ok">Misma corriente en ambos LEDs; el voltaje se reparte entre ellos.</div>
-      </div>
-
-      <div class="viz-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <h3>Circuito en Paralelo (caminos independientes)</h3>
-          <button type="button" class="seg-btn" id="btn-sp-par">Desconectar LED 1</button>
-        </div>
-        <div class="svg-stage">
-          <svg viewBox="0 0 460 190" aria-label="Circuito animado en paralelo">
-            <rect x="45" y="36" width="195" height="128" rx="12" fill="none" stroke="#334155" stroke-width="7" />
-            <rect id="sp-par-flow1" class="electron-flow" x="45" y="36" width="195" height="128" rx="12"
-              fill="none" stroke="#38bdf8" stroke-width="3.5" />
-            <path d="M 240 36 L 395 36 Q 409 36 409 50 L 409 150 Q 409 164 395 164 L 240 164"
-              fill="none" stroke="#334155" stroke-width="7" />
-            <path id="sp-par-flow2" class="electron-flow" d="M 240 36 L 395 36 Q 409 36 409 50 L 409 150 Q 409 164 395 164 L 240 164"
-              fill="none" stroke="#34d399" stroke-width="3.5" />
-
-            <rect x="18" y="78" width="54" height="48" rx="8" fill="#0f172a" stroke="#00c2b5" stroke-width="2" />
-            <text x="45" y="107" text-anchor="middle" fill="#5ef2e6" font-family="monospace" font-size="14" font-weight="bold">5 V</text>
-
-            <g transform="translate(218, 78)">
-              <circle id="sp-par-led1" cx="22" cy="20" r="18" fill="#22c55e" stroke="#fff" stroke-width="2" />
-              <text x="22" y="54" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">LED 1</text>
-            </g>
-            <g transform="translate(387, 78)">
-              <circle id="sp-par-led2" cx="22" cy="20" r="18" fill="#22c55e" stroke="#fff" stroke-width="2" />
-              <text x="22" y="54" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="11">LED 2</text>
-            </g>
-          </svg>
-        </div>
-        <div class="math-eq-box is-light" id="sp-par-eq"></div>
-        <div id="sp-par-msg" class="status-banner is-ok">Ambos reciben 5 V completos; si falla uno, el otro sigue funcionando.</div>
-      </div>
-    </div>
-  `;
-
-  const render = () => {
-    const reqSer = rVal * 2;
-    const reqPar = rVal / 2;
-    const iSer = seriesOpen ? '0.0' : ((5 / reqSer) * 1000).toFixed(1);
-    document.getElementById('sp-ser-eq')!.innerHTML = mEq(
-      `${mVar('R', 'eq')} <span class="math-op">=</span> ${mVar('R', '1')} <span class="math-op">+</span> ${mVar('R', '2')} <span class="math-op">=</span> <span class="math-val">${formatOhms(reqSer)}</span> · ${mVar('I', 'T')} <span class="math-op">=</span> <span class="math-val">${iSer} mA</span>`
-    );
-    document.getElementById('sp-par-eq')!.innerHTML = mEq(
-      `${mVar('R', 'eq')} <span class="math-op">=</span> ${mFrac(`${mVar('R', '1')} <span class="math-op">·</span> ${mVar('R', '2')}`, `${mVar('R', '1')} <span class="math-op">+</span> ${mVar('R', '2')}`)} <span class="math-op">=</span> <span class="math-val">${formatOhms(reqPar)}</span>`
-    );
-
-    const serFlow = document.getElementById('sp-ser-flow')!;
-    const serL1 = document.getElementById('sp-ser-led1')!;
-    const serL2 = document.getElementById('sp-ser-led2')!;
-    const serMsg = document.getElementById('sp-ser-msg')!;
-    const serBtn = document.getElementById('btn-sp-series')!;
-
-    serFlow.classList.toggle('is-stopped', seriesOpen);
-    serL1.setAttribute('fill', seriesOpen ? '#334155' : '#ef4444');
-    serL2.setAttribute('fill', seriesOpen ? '#334155' : '#ef4444');
-    serBtn.textContent = seriesOpen ? 'Reconectar LED 1' : 'Desconectar LED 1';
-    serBtn.classList.toggle('is-active', seriesOpen);
-    serMsg.className = `status-banner ${seriesOpen ? 'is-bad' : 'is-ok'}`;
-    serMsg.textContent = seriesOpen
-      ? 'Al abrir el LED 1 se corta el único camino: ambos LEDs se apagan.'
-      : 'Misma corriente en ambos LEDs; el voltaje se reparte entre ellos.';
-
-    const parF1 = document.getElementById('sp-par-flow1')!;
-    const parL1 = document.getElementById('sp-par-led1')!;
-    const parMsg = document.getElementById('sp-par-msg')!;
-    const parBtn = document.getElementById('btn-sp-par')!;
-
-    parF1.classList.toggle('is-stopped', parallelBranch1Open);
-    parL1.setAttribute('fill', parallelBranch1Open ? '#334155' : '#22c55e');
-    parBtn.textContent = parallelBranch1Open ? 'Reconectar LED 1' : 'Desconectar LED 1';
-    parBtn.classList.toggle('is-active', parallelBranch1Open);
-    parMsg.className = `status-banner ${parallelBranch1Open ? 'is-warn' : 'is-ok'}`;
-    parMsg.textContent = parallelBranch1Open
-      ? '¡Observa! Aunque LED 1 está abierto, LED 2 sigue encendido por su rama independiente.'
-      : 'Ambos reciben 5 V completos; si falla uno, el otro sigue funcionando.';
-  };
-
-  document.getElementById('btn-sp-series')?.addEventListener('click', () => {
-    seriesOpen = !seriesOpen;
-    render();
-  });
-  document.getElementById('btn-sp-par')?.addEventListener('click', () => {
-    parallelBranch1Open = !parallelBranch1Open;
-    render();
-  });
-  document.querySelectorAll<HTMLButtonElement>('[data-sp-r]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-sp-r]').forEach((b) => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      rVal = Number(btn.dataset.spR);
-      render();
-    });
-  });
-
-  render();
+  const root = document.getElementById('root-mod-serie-paralelo');
+  if (root) mountCircuitsLab(root);
 }
 
 /* =========================================================================
@@ -2338,9 +2212,10 @@ function mountModPwm(): void {
     );
 
     const eff = duty;
-    document.getElementById('pwm-heat-eq')!.innerHTML = mEq(
-      `${mVar('P', 'calor')} <span class="math-op">=</span> (<span class="math-val">5 V</span> <span class="math-op">−</span> ${mVar('V', 'carga')}) <span class="math-op">·</span> ${mVar('I')} · <span class="math-val">Eficiencia lineal: ${eff}%</span>`
-    );
+    document.getElementById('pwm-heat-eq')!.innerHTML = `
+      ${mEq(`${mVar('P', 'calor')} <span class="math-op">=</span> (<span class="math-val">5 V</span> <span class="math-op">−</span> ${mVar('V', 'carga')}) <span class="math-op">·</span> ${mVar('I')}`)}
+      <div class="pwm-eff-badge">Eficiencia lineal aproximada: <strong>${eff}%</strong></div>
+    `;
 
     if (!slowMo) {
       const b = duty / 100;

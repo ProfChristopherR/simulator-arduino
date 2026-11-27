@@ -461,16 +461,26 @@ export function createMalePinRow(
 ): THREE.Group {
   const grp = new THREE.Group();
   const plasticGeo = new THREE.BoxGeometry(0.22, 0.11, 0.22);
-  const pinGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.38, 10);
+  // Pin macho extendido hacia abajo (0.44 debajo + punta pequeña arriba) con cono de soldadura
+  const shaftGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.56, 10);
+  const solderGeo = new THREE.CylinderGeometry(0.032, 0.068, 0.036, 12);
   const targetGeo = new THREE.SphereGeometry(0.088, 12, 12);
   const goldMat = MAT.gold();
+  const solderMat = MAT.metal();
   const plasticMat = MAT.headerPlastic();
 
   for (const p of pins) {
+    // Tira plástica negra debajo de la PCB (PCB abarca y = -0.08 .. +0.08)
     const base = new THREE.Mesh(plasticGeo, plasticMat);
-    base.position.set(p.localPos[0], p.localPos[1] - 0.14, p.localPos[2]);
-    const shaft = new THREE.Mesh(pinGeo, goldMat);
-    shaft.position.set(p.localPos[0], p.localPos[1] - 0.03, p.localPos[2]);
+    base.position.set(p.localPos[0], -0.135, p.localPos[2]);
+
+    // Pin dorado apuntando hacia abajo (y = -0.425 .. +0.135): solo ~0.055 sobresale arriba
+    const shaft = new THREE.Mesh(shaftGeo, goldMat);
+    shaft.position.set(p.localPos[0], -0.145, p.localPos[2]);
+
+    // Pequeño cono de soldadura plateada en la cara superior de la PCB
+    const solder = new THREE.Mesh(solderGeo, solderMat);
+    solder.position.set(p.localPos[0], 0.098, p.localPos[2]);
 
     const anchor = new THREE.Mesh(
       targetGeo,
@@ -482,10 +492,10 @@ export function createMalePinRow(
         opacity: 0,
       })
     );
-    anchor.position.set(p.localPos[0], p.localPos[1] + 0.15, p.localPos[2]);
+    anchor.position.set(p.localPos[0], 0.145, p.localPos[2]);
     anchor.userData = { pinId: p.id, pinDef: p };
 
-    grp.add(base, shaft, anchor);
+    grp.add(base, shaft, solder, anchor);
     pinAnchors.set(p.id, anchor);
   }
   return grp;

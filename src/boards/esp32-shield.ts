@@ -12,7 +12,7 @@ import {
   createSmdPassive,
 } from '../core/board-builder';
 
-export const ESP32_SHIELD_LIFT_Y = 0.38;
+export const ESP32_SHIELD_LIFT_Y = 0.62;
 
 const SHIELD_W = 6.9;
 const SHIELD_D = 5.18;

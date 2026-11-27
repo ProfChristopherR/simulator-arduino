@@ -361,9 +361,8 @@ function createMicroUsb3D(): THREE.Group {
 function buildEsp323D(options?: { forWorkbench?: boolean; withShield?: boolean }): BuiltBoard3D {
   const group = new THREE.Group();
   const devkitGroup = new THREE.Group();
-  if (options?.withShield) {
-    devkitGroup.position.y = ESP32_SHIELD_LIFT_Y;
-  }
+  // Los pines hacia abajo descansan en y=0 (sola -> 0.42) o encajan en el zócalo del Shield (0.62)
+  devkitGroup.position.y = options?.withShield ? ESP32_SHIELD_LIFT_Y : 0.42;
 
   const partMeshes = new Map<string, THREE.Object3D>();
   const pinAnchors = new Map<string, THREE.Object3D>();

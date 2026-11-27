@@ -220,7 +220,7 @@ export class HeroBoardViewer {
     this.built.group.position.y = 0.22;
     this.boardRoot.add(this.built.group);
 
-    const shieldLift = this.withShield ? 0.38 : 0;
+    const shieldLift = spec.id === 'esp32' ? (this.withShield ? 0.62 : 0.42) : 0;
     spec.parts.forEach((part, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';

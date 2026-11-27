@@ -4,6 +4,7 @@ import { ARDUINO_UNO_SPEC } from '../src/boards/arduino-uno.ts';
 import { ESP32_SPEC } from '../src/boards/esp32-devkit.ts';
 import { getBoardSpec } from '../src/boards/registry.ts';
 import { bandsToOhms, ohmsToBands } from '../src/education/resistor-calc.ts';
+import { solveMixedResistors, solveMultiSourceCircuit } from '../src/education/circuits-lab.ts';
 import { computeHydraulicState } from '../src/education/water-analogy.ts';
 import { resistorBandsForOhms } from '../src/lab/components/catalog.ts';
 import { MISSIONS } from '../src/lab/missions.ts';
@@ -443,4 +444,18 @@ test('water-analogy calcula Ohm puro (2.5 V / 220 Ω = 11.4 mA) y detiene flujo 
   assert.equal(closedValve.ohms, Infinity);
   assert.equal(closedValve.flowMa, 0);
   assert.equal(closedValve.velocityNorm, 0);
+});
+
+test('circuits-lab resuelve circuito mixto R1+(R2||R3) y nodo de múltiples fuentes con KCL', () => {
+  const mx = solveMixedResistors(9, 220, 470, 470);
+  assert.equal(Math.round(mx.r23), 235);
+  assert.equal(Math.round(mx.rEq), 455);
+  assert.ok(Math.abs(mx.iTotalMa - (mx.i2Ma + mx.i3Ma)) < 0.05);
+
+  const msNorm = solveMultiSourceCircuit(9, 5, false, 220, 220, 470);
+  assert.ok(Math.abs(msNorm.i1Ma + msNorm.i2Ma - msNorm.i3Ma) < 0.05);
+
+  const msInv = solveMultiSourceCircuit(9, 5, true, 220, 220, 470);
+  assert.ok(msInv.i2Ma < 0);
+  assert.ok(Math.abs(msInv.i1Ma + msInv.i2Ma - msInv.i3Ma) < 0.05);
 });

@@ -163,13 +163,15 @@
   color: #eee3cc;
   border: 1px solid rgba(0, 194, 181, 0.28);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
+  padding: 14px 16px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
   gap: 8px;
   min-height: 76px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .math-eq-box.is-light {
@@ -181,10 +183,23 @@
 .math-eq {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
   font-family: var(--serif);
-  font-size: 1.38rem;
-  line-height: 1.2;
+  font-size: clamp(1rem, 1.45vw, 1.24rem);
+  line-height: 1.25;
+}
+
+.pwm-eff-badge {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent-ink);
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 999px;
 }
 
 .math-var {
@@ -1153,6 +1168,68 @@
   font-family: var(--mono);
   font-weight: 800;
   color: var(--accent-ink);
+}
+
+/* Módulo 4: Circuitos Serie, Paralelo, Mixto y Múltiples Fuentes */
+.circuits-block + .circuits-block {
+  margin-top: 20px;
+}
+
+.circuits-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  background: var(--paper-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.cb-lbl {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.cb-sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+.mixed-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.circuits-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.eq-step-list {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 960px) {
+  .mixed-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .circuits-sliders {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
